@@ -40,10 +40,18 @@ impl EventHandler for Bot {
             sequence.pop(); // Remove trailing space
             sequence.pop(); // Remove trailing comma
 
-            let sum = sequence.split(", ").map(|n| n.parse::<u32>().unwrap()).reduce(|a, b| a + b).expect("No reduction?");
+            if rolls > 1 {
+                let sum = sequence.split(", ").map(|n| n.parse::<u32>().unwrap()).reduce(|a, b| a + b).expect("No reduction?");
 
-            let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{} = {}", sequence, sum))).await;
+                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{} = {}", sequence, sum))).await;
+            } else {
+                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{}", sequence))).await;
+            }
         }
+
+        // FIXME: As it is right now, first all non-bonus roll will be processed, then all bonus rolls.
+        // Fix so that all rolls are processed in order, regardless of bonus.
+        // (I.e.: use a regex that captures an optional group for the bonus.)
 
         // Bonus roll message, e.g.: [2d20+5]
         let dice_and_bonus = Regex::new(r"\[(\d+)d(\d+) ?\+ ?(\d+)\]").expect("No regex?");
@@ -90,6 +98,6 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("No tokens?");
     let mut client = Client::builder(&token, GatewayIntents::default() | GatewayIntents::MESSAGE_CONTENT).event_handler(Bot).await.expect("No clients?");
 
-    client.start().await.expect("No clients again?");
+    client.start().await.expect("No work?");
 }
 
