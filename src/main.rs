@@ -45,51 +45,57 @@ impl EventHandler for Bot {
         // Bonus roll message, e.g.: [2d20+5]
         let dice_and_bonus = Regex::new(r"\[(\d+)d(\d+) ?\+ ?(-?\d+)\]").expect("No regex?");
         for (_, [rolls_str, size_str, bonus_str]) in dice_and_bonus.captures_iter(&content).map(|c| c.extract()) {
-            let rolls = rolls_str.parse::<i32>().expect("No rolls?");
-            let size = size_str.parse::<i32>().expect("No size?");
-            let bonus = bonus_str.parse::<i32>().expect("No bonus?");
+            if rolls_str.chars().count() > 15 || size_str.chars().count() > 15 || bonus_str.chars().count() > 15 {
+                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("That numeral is overlarge for mine ancient, fatigued orbs to even peruse. I am apprehensive thou shalt require another's aid. Should thou seek assistance with lesser matters, I am at thy service!")).await;
+                continue;
+            }
+
+            let rolls = rolls_str.parse::<i64>().expect("No rolls?");
+            let size = size_str.parse::<i64>().expect("No size?");
+            let bonus = bonus_str.parse::<i64>().expect("No bonus?");
             
-            // Arbitrary limits check, so only reasonable amounts of numbers of reasonable size are returned;
-            if rolls > 20i32 {
-                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Inquired for overmuch rolls. I may only proffer up to twain score!")).await;
-                continue;
-            }
-            if size > 1_000i32 {
-                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Entreaded for an excessive sum. I can only reckon unto a thousand!")).await;
-                continue;
-            }
-            if bonus > rolls * size * 10 {
-                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Besought an excessive boon. Be not so covetous, traveler!")).await;
-                continue;
-            }
+            if size > 1 && rolls > 0 {
+                // Arbitrary limits check, so only reasonable amounts of numbers of reasonable size are returned;
+                if rolls > 20i64 {
+                    let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Inquired for overmuch rolls. I may only proffer up to twain score!")).await;
+                    continue;
+                }
+                if size > 1_000i64 {
+                    let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Entreaded for an excessive sum. I can only reckon unto a thousand!")).await;
+                    continue;
+                }
+                if bonus > rolls * size * 10 {
+                    let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Besought an excessive boon. Be not so covetous, traveller!")).await;
+                    continue;
+                }
 
-            // Roll sequence generation:
-            let mut sequence: String;
-
-            if size > 1 {
                 let url = format!("https://www.random.org/integers/?num={}&min=1&max={}&col=1&base=10&format=plain&rnd=new", rolls, size);
                 let res = reqwest::get(url).await.expect("No random?");
                 let body = res.text().await.expect("No numbers?");
 
-                sequence = format!("{}", body.replace("\n", ", "));
-            } else {
-                sequence = size.to_string();
-                sequence.push_str(", ");
-                sequence = sequence.repeat(rolls as usize);
-            }
-            sequence.pop(); // Remove trailing space
-            sequence.pop(); // Remove trailing comma
+                // Comma-separated sequence:
+                let mut sequence = format!("{}", body.replace("\n", ", "));
+                sequence.pop(); // Remove trailing space
+                sequence.pop(); // Remove trailing comma
 
-            let sum = sequence.split(", ").map(|n| n.parse::<i32>().unwrap()).reduce(|a, b| a + b).expect("No reduction?");
+                let sum = sequence.split(", ").map(|n| n.parse::<i64>().unwrap()).reduce(|a, b| a + b).expect("No reduction?");
 
-            if bonus == 0 {
-                if rolls == 1 {
-                    let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{}", sequence))).await;
+                if bonus == 0 {
+                    if rolls == 1 {
+                        let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{}", sequence))).await;
+                    } else {
+                        let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{} = {}", sequence, sum + bonus))).await;
+                    }
                 } else {
-                    let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{} = {}", sequence, sum + bonus))).await;
+                    let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{} + {} = {}", sequence, bonus, sum + bonus))).await;
                 }
             } else {
-                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("{} + {} = {}", sequence, bonus, sum + bonus))).await;
+                // Smug answer for d1s, d0s, and 0 rolls:
+                if rolls > 1_000_000_000 || size > 1_000_000_000 || bonus > 1_000_000_00 {
+                   let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("Deem me not a fool, traveller. Be earnest and cease thy jesting with me!"))).await;
+                } else {
+                   let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(format!("I deem thy sagacity to be not especially lofty, thus I shall provide a rejoinder to thy entreaty, as a gesture of courtesy: {}", rolls * size + bonus))).await;
+                }
             }
         }
     }
