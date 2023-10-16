@@ -55,7 +55,7 @@ impl EventHandler for Bot {
             let bonus = bonus_str.parse::<i64>().expect("No bonus?");
             
             if size > 1 && rolls > 0 {
-                // Arbitrary limits check, so only reasonable amounts of numbers of reasonable size are returned;
+                // Arbitrary limits check, so only reasonable amounts of numbers of reasonable size are returned:
                 if rolls > 20i64 {
                     let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("Inquired for overmuch rolls. I may only proffer up to twain score!")).await;
                     continue;
