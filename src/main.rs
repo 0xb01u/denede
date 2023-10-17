@@ -45,7 +45,9 @@ impl EventHandler for Bot {
         // Bonus roll message, e.g.: [2d20+5]
         let dice_and_bonus = Regex::new(r"\[(\d+)d(\d+) ?\+ ?(-?\d+)\]").expect("No regex?");
         for (_, [rolls_str, size_str, bonus_str]) in dice_and_bonus.captures_iter(&content).map(|c| c.extract()) {
-            if rolls_str.chars().count() > 15 || size_str.chars().count() > 15 || bonus_str.chars().count() > 15 {
+            // Avoid an i64-parse error:
+            // (2**63 is 19 characters long.)
+            if rolls_str.chars().count() > 18 || size_str.chars().count() > 18 || bonus_str.chars().count() > 18 {
                 let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("That numeral is overlarge for mine ancient, fatigued orbs to even peruse. I am apprehensive thou shalt require another's aid. Should thou seek assistance with lesser matters, I am at thy service!")).await;
                 continue;
             }
