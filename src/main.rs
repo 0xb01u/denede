@@ -34,6 +34,10 @@ impl EventHandler for Bot {
 
         let mut content = msg.content;
 
+        // Shortcut roll message, e.g.: [d]
+        let dice_shortcut = Regex::new(r"\[d(?<bonus> ?[+-] ?-?\d+)?\]").expect("No shortcut regex?");
+        content = dice_shortcut.replace_all(&content, "[1d20$bonus]").into_owned();
+
         // Regular roll message, e.g.: [2d20]
         let dice = Regex::new(r"(?<roll>\[\d+d\d+)\]").expect("No un-bonused regex?");
         content = dice.replace_all(&content, "$roll+0]").into_owned();
