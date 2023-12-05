@@ -102,7 +102,7 @@ impl EventHandler for Bot {
                 }
             } else {
                 // Smug answer for d1s, d0s, and 0 rolls:
-                if rolls > 1_000_000_000 || size > 1_000_000_000 || bonus > 1_000_000_00 {
+                if rolls > 1_000_000_000 || size > 1_000_000_000 || bonus > 1_000_000_000 {
                    response.push(format!("Deem me not a fool, traveller. Be earnest and cease thy jesting with me!"));
                 } else {
                    response.push(format!("I deem thy sagacity to be not especially lofty, thus I shall provide a rejoinder to thy entreaty, as a gesture of courtesy: {}", rolls * size + bonus));
