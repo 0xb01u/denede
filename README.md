@@ -18,5 +18,7 @@ Denedé will read the entirety of the non-bot messages it receives, looking for 
 
 The maximum number of rolls the bot will generate for a single query is of 20; and the maximum dice size for any roll is of 1000. The maximum bonus supported for a given query is equal to (number of rolls) * (dice size) * 10, to keep everything a reasonable size. It supports trivial rolls of 0 dice, as well as 1-sided and 0-sided dice, if for any reason you want them (although Denedé will note something isn't right about those kinds of rolls).
 
-Also, Denedé uses [RANDOM.org](https://www.random.org)'s truly random number generator to resolve the dice rolls. So you can rest assured your rolls are truly random and not pseudo-random!
+Also, Denedé uses [RANDOM.ORG](https://www.random.org)'s truly random number generator to resolve the dice rolls. So you can rest assured your rolls are truly random and not pseudo-random!
+
+**Note:** Denedé has a fallback in case RANDOM.ORG's API does not work properly for some reason (e.g.: because it is performing a secure connection / anti-abuse check before serving the random sequence request; it has happened before). In those cases, Denedé will use a pseudo-random number generator from Rust's Random number library instead, to generate the dice rolls. When this occurs, Denedé's response will indicate that the rolls were generated pseudo-randomly by appending `[pseudo-random]` after the roll's result.
 

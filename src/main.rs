@@ -84,12 +84,27 @@ impl EventHandler for Bot {
                 let res = reqwest::get(url).await.expect("No random?");
                 let body = res.text().await.expect("No numbers?");
 
-                // Comma-separated sequence:
-                let mut sequence = format!("{}", body.replace("\n", ", "));
+                // Comma-separated sequence of random numbers:
+                let mut sequence: String = "".to_owned();
+                let is_truly_random: bool;
+                if body.chars().nth(0).expect("No webpage body?").is_digit(10) {
+                    sequence = format!("{}", body.replace("\n", ", "));
+                    is_truly_random = true;
+                } else {
+                    // Fallback in case random.org does not work for some reason (has happened):
+                    use rand::prelude::*;
+
+                    let mut rng = thread_rng();
+
+                    for _ in 0..rolls {
+                        sequence.push_str(&format!("{}, ", rng.gen_range(1..size+1)));
+                    }
+                    is_truly_random = false;
+                }
                 sequence.pop(); // Remove trailing space
                 sequence.pop(); // Remove trailing comma
 
-                let sum = sequence.split(", ").map(|n| n.parse::<i64>().unwrap()).reduce(|a, b| a + b).expect("No reduction?");
+                let sum = sequence.split(", ").map(|n| n.parse::<i64>().expect("No random number?")).reduce(|a, b| a + b).expect("No reduction?");
 
                 if bonus == 0 {
                     if rolls == 1 {
@@ -99,6 +114,11 @@ impl EventHandler for Bot {
                     }
                 } else {
                     response.push(format!("{} + {} = {}", sequence, bonus, sum + bonus));
+                }
+
+                if !is_truly_random {
+                    // If denedé used the fallback PRNG, indicate it in the response message:
+                    response.last_mut().unwrap().push_str(" [pseudo-random]");
                 }
             } else {
                 // Smug answer for d1s, d0s, and 0 rolls:
