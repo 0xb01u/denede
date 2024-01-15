@@ -1,6 +1,6 @@
 /*
  *  Denedé: Discord bot for generating D&D dice rolls, written in Rust.
- *  Copyright (C) 2023  Bolu <bolu@tuta.io>
+ *  Copyright (C) 2023-2024  Bolu <bolu@tuta.io>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published
@@ -9,23 +9,47 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+mod commands;
+
 use std::env;
 use regex::Regex;
 extern crate reqwest;
+use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::prelude::*;
+use serenity::model::application::{Command, Interaction};
 use serenity::prelude::*;
-use serenity::Client;
 
 struct Bot;
 
 #[serenity::async_trait]
 impl EventHandler for Bot {
+    // Process slash commands:
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::Command(ref command) = interaction {
+            let cmd_response = match command.data.name.as_str() {
+                "ping" => commands::ping::run(&command.data.options(), &ctx, &interaction).await,
+                "license" => commands::license::run(&command.data.options()),
+                "src" => commands::src::run(&command.data.options()),
+                _ => None,
+            };
+
+            if let Some((result, ephemeral)) = cmd_response {
+                let data = CreateInteractionResponseMessage::new().content(result).ephemeral(ephemeral);
+                let builder = CreateInteractionResponse::Message(data);
+                if let Err(why) = command.create_response(&ctx.http, builder).await {
+                    println!("Could not respond to slash command: {why}");
+                }
+            }
+        }
+    }
+
+    // Process text messages => Dice rolls.
     async fn message(&self, ctx: Context, msg: Message) {
         // Ignore messages from other bots:
         if msg.author.bot {
@@ -57,7 +81,7 @@ impl EventHandler for Bot {
             // Avoid an i64-parse error:
             // (2**63 is 19 characters long.)
             if rolls_str.chars().count() > 18 || size_str.chars().count() > 18 || bonus_str.chars().count() > 18 {
-                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content("That numeral is overlarge for mine ancient, fatigued orbs to even peruse. I am apprehensive thou shalt require another's aid. Should thou seek assistance with lesser matters, I am at thy service!")).await;
+                let _ = msg.channel_id.say(&ctx.http, "That numeral is overlarge for mine ancient, fatigued orbs to even peruse. I am apprehensive thou shalt require another's aid. Should thou seek assistance with lesser matters, I am at thy service!").await;
                 continue;
             }
 
@@ -133,17 +157,30 @@ impl EventHandler for Bot {
         let mut response_str = "".to_owned();
         for roll in &response {
             if response_str.len() + roll.len() > 2000 {
-                let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(response_str)).await;
+                let _ = msg.channel_id.say(&ctx.http, response_str).await;
                 response_str = "".to_owned();
             }
             response_str.push_str(&format!("{}\n", roll));
         }
         // Send last response:
-        let _ = msg.channel_id.send_message(&ctx, |msg| msg.content(response_str)).await;
+        let _ = msg.channel_id.say(&ctx.http, response_str).await;
     }
 
-    async fn ready(&self, _: Context, ready: Ready) {
-        println!("{}#{} is connected.", ready.user.name, ready.user.discriminator);
+    async fn ready(&self, ctx: Context, ready: Ready) {
+        match ready.user.discriminator {
+            Some(discriminator) => println!("{}#{discriminator:#?} is connected.", ready.user.name),
+            None => println!("{} is connected.", ready.user.name),
+        }
+
+        // Register slash commands:
+        let commands = Command
+            ::set_global_commands(&ctx.http, vec![
+                commands::ping::register(),
+                commands::license::register(),
+                commands::src::register(),
+        ]).await.unwrap();
+
+        println!("Registered the following commands: {:?}", commands.into_iter().map(|cmd| cmd.name ).collect::<Vec<String>>());
     }
 }
 
