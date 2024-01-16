@@ -54,8 +54,8 @@ pub async fn run(options: &[ResolvedOption<'_>], ctx: &Context, interaction: &In
 }
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("ping").description("Get information about the bot's response latency").add_option(
-        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users")
+    CreateCommand::new("ping").description("Get information about the bot's response latency.").add_option(
+        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users (default = true).")
             .required(false),
     )
 }

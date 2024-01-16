@@ -32,8 +32,8 @@ pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
 }
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("src").description("Get a link to this bot's source code").add_option(
-        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users")
+    CreateCommand::new("code").description("Get a link to this bot's source code.").add_option(
+        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users (default = true).")
             .required(false),
     )
 }

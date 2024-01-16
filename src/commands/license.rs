@@ -47,8 +47,8 @@ pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
 }
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("license").description("Show the software license for this bot").add_option(
-        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users")
+    CreateCommand::new("license").description("Show the software license for this bot.").add_option(
+        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users (default = true).")
             .required(false),
     )
 }

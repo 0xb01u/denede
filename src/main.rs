@@ -35,7 +35,7 @@ impl EventHandler for Bot {
             let cmd_response = match command.data.name.as_str() {
                 "ping" => commands::ping::run(&command.data.options(), &ctx, &interaction).await,
                 "license" => commands::license::run(&command.data.options()),
-                "src" => commands::src::run(&command.data.options()),
+                "code" => commands::code::run(&command.data.options()),
                 _ => None,
             };
 
@@ -49,7 +49,7 @@ impl EventHandler for Bot {
         }
     }
 
-    // Process text messages => Dice rolls.
+    // Process text messages => Dice rolls:
     async fn message(&self, ctx: Context, msg: Message) {
         // Ignore messages from other bots:
         if msg.author.bot {
@@ -173,14 +173,13 @@ impl EventHandler for Bot {
         }
 
         // Register slash commands:
-        let commands = Command
-            ::set_global_commands(&ctx.http, vec![
-                commands::ping::register(),
-                commands::license::register(),
-                commands::src::register(),
+        let commands = Command ::set_global_commands(&ctx.http, vec![
+            commands::ping::register(),
+            commands::license::register(),
+            commands::code::register(),
         ]).await.unwrap();
 
-        println!("Registered the following commands: {:?}", commands.into_iter().map(|cmd| cmd.name ).collect::<Vec<String>>());
+        println!("Registered the following commands: {:?}", commands.into_iter().map(|cmd| cmd.name).collect::<Vec<String>>());
     }
 }
 
