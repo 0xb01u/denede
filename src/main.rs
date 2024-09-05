@@ -17,12 +17,12 @@
  */
 mod commands;
 
-use std::env;
 use regex::Regex;
+use std::env;
 extern crate reqwest;
 use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
-use serenity::model::prelude::*;
 use serenity::model::application::{Command, Interaction};
+use serenity::model::prelude::*;
 use serenity::prelude::*;
 
 struct Bot;
@@ -40,7 +40,9 @@ impl EventHandler for Bot {
             };
 
             if let Some((result, ephemeral)) = cmd_response {
-                let data = CreateInteractionResponseMessage::new().content(result).ephemeral(ephemeral);
+                let data = CreateInteractionResponseMessage::new()
+                    .content(result)
+                    .ephemeral(ephemeral);
                 let builder = CreateInteractionResponse::Message(data);
                 if let Err(why) = command.create_response(&ctx.http, builder).await {
                     println!("Could not respond to slash command: {why}");
@@ -60,27 +62,44 @@ impl EventHandler for Bot {
         let mut response = Vec::new();
 
         // Shortcut roll message, e.g.: [d] [3d] [d40]
-        let dice_shortcut = Regex::new(r"\[d(?<bonus> ?[+-] ?-?\d+)?\]").expect("No shortcut regex?");
-        content = dice_shortcut.replace_all(&content, "[1d20$bonus]").into_owned();
-        let dice_shortcut_amount = Regex::new(r"\[(?<amount>\d+)d(?<bonus> ?[+-] ?-?\d+)?\]").expect("No amount shortcut regex?");
-        content = dice_shortcut_amount.replace_all(&content, "[${amount}d20$bonus]").into_owned();
-        let dice_shortcut_size = Regex::new(r"\[d(?<size>\d+)(?<bonus> ?[+-] ?-?\d+)?\]").expect("No size shortcut regex?");
-        content = dice_shortcut_size.replace_all(&content, "[1d$size$bonus]").into_owned();
+        let dice_shortcut =
+            Regex::new(r"\[d(?<bonus> ?[+-] ?-?\d+)?\]").expect("No shortcut regex?");
+        content = dice_shortcut
+            .replace_all(&content, "[1d20$bonus]")
+            .into_owned();
+        let dice_shortcut_amount = Regex::new(r"\[(?<amount>\d+)d(?<bonus> ?[+-] ?-?\d+)?\]")
+            .expect("No amount shortcut regex?");
+        content = dice_shortcut_amount
+            .replace_all(&content, "[${amount}d20$bonus]")
+            .into_owned();
+        let dice_shortcut_size = Regex::new(r"\[d(?<size>\d+)(?<bonus> ?[+-] ?-?\d+)?\]")
+            .expect("No size shortcut regex?");
+        content = dice_shortcut_size
+            .replace_all(&content, "[1d$size$bonus]")
+            .into_owned();
 
         // Regular roll message, e.g.: [2d20]
         let dice = Regex::new(r"(?<roll>\[\d+d\d+)\]").expect("No un-bonused regex?");
         content = dice.replace_all(&content, "$roll+0]").into_owned();
 
         // Negative bonus roll message, e.g.: [2d20-5]
-        let dice_and_neg_bonus = Regex::new(r"(?<roll>\[\d+d\d+) ?- ?(?<bonus>\d+\])").expect("No negative-bonused regex?");
-        content = dice_and_neg_bonus.replace_all(&content, "$roll+-$bonus").into_owned();
+        let dice_and_neg_bonus = Regex::new(r"(?<roll>\[\d+d\d+) ?- ?(?<bonus>\d+\])")
+            .expect("No negative-bonused regex?");
+        content = dice_and_neg_bonus
+            .replace_all(&content, "$roll+-$bonus")
+            .into_owned();
 
         // Bonus roll message, e.g.: [2d20+5]
         let dice_and_bonus = Regex::new(r"\[(\d+)d(\d+) ?\+ ?(-?\d+)\]").expect("No regex?");
-        for (_, [rolls_str, size_str, bonus_str]) in dice_and_bonus.captures_iter(&content).map(|c| c.extract()) {
+        for (_, [rolls_str, size_str, bonus_str]) in
+            dice_and_bonus.captures_iter(&content).map(|c| c.extract())
+        {
             // Avoid an i64-parse error:
             // (2**63 is 19 characters long.)
-            if rolls_str.chars().count() > 18 || size_str.chars().count() > 18 || bonus_str.chars().count() > 18 {
+            if rolls_str.chars().count() > 18
+                || size_str.chars().count() > 18
+                || bonus_str.chars().count() > 18
+            {
                 let _ = msg.channel_id.say(&ctx.http, "That numeral is overlarge for mine ancient, fatigued orbs to even peruse. I am apprehensive thou shalt require another's aid. Should thou seek assistance with lesser matters, I am at thy service!").await;
                 continue;
             }
@@ -88,19 +107,27 @@ impl EventHandler for Bot {
             let rolls = rolls_str.parse::<i64>().expect("No rolls?");
             let size = size_str.parse::<i64>().expect("No size?");
             let bonus = bonus_str.parse::<i64>().expect("No bonus?");
-            
+
             if size > 1 && rolls > 0 {
                 // Arbitrary limits check, so only reasonable amounts of numbers of reasonable size are returned:
                 if rolls > 20i64 {
-                    response.push("Inquired for overmuch rolls. I may only proffer up to twain score!".to_owned());
+                    response.push(
+                        "Inquired for overmuch rolls. I may only proffer up to twain score!"
+                            .to_owned(),
+                    );
                     continue;
                 }
                 if size > 1_000i64 {
-                    response.push("Entreaded for an excessive sum. I can only reckon unto a thousand!".to_owned());
+                    response.push(
+                        "Entreaded for an excessive sum. I can only reckon unto a thousand!"
+                            .to_owned(),
+                    );
                     continue;
                 }
                 if bonus > rolls * size * 10 {
-                    response.push("Besought an excessive boon. Be not so covetous, traveller!".to_owned());
+                    response.push(
+                        "Besought an excessive boon. Be not so covetous, traveller!".to_owned(),
+                    );
                     continue;
                 }
 
@@ -121,14 +148,18 @@ impl EventHandler for Bot {
                     let mut rng = thread_rng();
 
                     for _ in 0..rolls {
-                        sequence.push_str(&format!("{}, ", rng.gen_range(1..size+1)));
+                        sequence.push_str(&format!("{}, ", rng.gen_range(1..size + 1)));
                     }
                     is_truly_random = false;
                 }
                 sequence.pop(); // Remove trailing space
                 sequence.pop(); // Remove trailing comma
 
-                let sum = sequence.split(", ").map(|n| n.parse::<i64>().expect("No random number?")).reduce(|a, b| a + b).expect("No reduction?");
+                let sum = sequence
+                    .split(", ")
+                    .map(|n| n.parse::<i64>().expect("No random number?"))
+                    .reduce(|a, b| a + b)
+                    .expect("No reduction?");
 
                 if bonus == 0 {
                     if rolls == 1 {
@@ -147,9 +178,11 @@ impl EventHandler for Bot {
             } else {
                 // Smug answer for d1s, d0s, and 0 rolls:
                 if rolls > 1_000_000_000 || size > 1_000_000_000 || bonus > 1_000_000_000 {
-                   response.push(format!("Deem me not a fool, traveller. Be earnest and cease thy jesting with me!"));
+                    response.push(format!(
+                        "Deem me not a fool, traveller. Be earnest and cease thy jesting with me!"
+                    ));
                 } else {
-                   response.push(format!("I deem thy sagacity to be not especially lofty, thus I shall provide a rejoinder to thy entreaty, as a gesture of courtesy: {}", rolls * size + bonus));
+                    response.push(format!("I deem thy sagacity to be not especially lofty, thus I shall provide a rejoinder to thy entreaty, as a gesture of courtesy: {}", rolls * size + bonus));
                 }
             }
         }
@@ -173,21 +206,37 @@ impl EventHandler for Bot {
         }
 
         // Register slash commands:
-        let commands = Command ::set_global_commands(&ctx.http, vec![
-            commands::ping::register(),
-            commands::license::register(),
-            commands::code::register(),
-        ]).await.unwrap();
+        let commands = Command::set_global_commands(
+            &ctx.http,
+            vec![
+                commands::ping::register(),
+                commands::license::register(),
+                commands::code::register(),
+            ],
+        )
+        .await
+        .unwrap();
 
-        println!("Registered the following commands: {:?}", commands.into_iter().map(|cmd| cmd.name).collect::<Vec<String>>());
+        println!(
+            "Registered the following commands: {:?}",
+            commands
+                .into_iter()
+                .map(|cmd| cmd.name)
+                .collect::<Vec<String>>()
+        );
     }
 }
 
 #[tokio::main]
 async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("No tokens?");
-    let mut client = Client::builder(&token, GatewayIntents::default() | GatewayIntents::MESSAGE_CONTENT).event_handler(Bot).await.expect("No clients?");
+    let mut client = Client::builder(
+        &token,
+        GatewayIntents::default() | GatewayIntents::MESSAGE_CONTENT,
+    )
+    .event_handler(Bot)
+    .await
+    .expect("No clients?");
 
     client.start().await.expect("No work?");
 }
-

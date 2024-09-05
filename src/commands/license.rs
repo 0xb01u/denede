@@ -21,14 +21,17 @@ use serenity::model::application::{CommandOptionType, ResolvedOption, ResolvedVa
 pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
     let ephemeral: bool;
     if let Some(ResolvedOption {
-        value: ResolvedValue::Boolean(is_ephemeral), ..
-    }) = options.first() {
+        value: ResolvedValue::Boolean(is_ephemeral),
+        ..
+    }) = options.first()
+    {
         ephemeral = *is_ephemeral;
     } else {
         ephemeral = true;
     }
 
-    Some(("Denedé: Discord bot for generating D&D dice rolls, written in Rust. \
+    Some((
+        "Denedé: Discord bot for generating D&D dice rolls, written in Rust. \
     Copyright (C) 2023-2024  Bolu <bolu@tuta.io>\n\
     \n\
     This program is free software: you can redistribute it and/or modify \
@@ -42,14 +45,21 @@ pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
     GNU Affero General Public License for more details.\n\
     \n\
     You should have received a copy of the GNU Affero General Public License \
-    along with this program. If not, see <https://www.gnu.org/licenses/>.\n".to_string(),
-    ephemeral))
+    along with this program. If not, see <https://www.gnu.org/licenses/>.\n"
+            .to_string(),
+        ephemeral,
+    ))
 }
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("license").description("Show the software license for this bot.").add_option(
-        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users (default = true).")
+    CreateCommand::new("license")
+        .description("Show the software license for this bot.")
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::Boolean,
+                "hidden",
+                "Hide the command's response to other users (default = true).",
+            )
             .required(false),
-    )
+        )
 }
-

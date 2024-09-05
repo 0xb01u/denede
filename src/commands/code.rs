@@ -21,20 +21,30 @@ use serenity::model::application::{CommandOptionType, ResolvedOption, ResolvedVa
 pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
     let ephemeral: bool;
     if let Some(ResolvedOption {
-        value: ResolvedValue::Boolean(is_ephemeral), ..
-    }) = options.first() {
+        value: ResolvedValue::Boolean(is_ephemeral),
+        ..
+    }) = options.first()
+    {
         ephemeral = *is_ephemeral;
     } else {
         ephemeral = true;
     }
 
-    Some(("My source code can be found here: https://github.com/0xb01u/denede".to_string(), ephemeral))
+    Some((
+        "My source code can be found here: https://github.com/0xb01u/denede".to_string(),
+        ephemeral,
+    ))
 }
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("code").description("Get a link to this bot's source code.").add_option(
-        CreateCommandOption::new(CommandOptionType::Boolean, "hidden", "Hide the command's response to other users (default = true).")
+    CreateCommand::new("code")
+        .description("Get a link to this bot's source code.")
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::Boolean,
+                "hidden",
+                "Hide the command's response to other users (default = true).",
+            )
             .required(false),
-    )
+        )
 }
-
