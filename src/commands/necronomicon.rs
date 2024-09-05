@@ -485,11 +485,15 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let response = petition!(delete, format!("/{}/note", enemy_name), note_idx);
     return match response.status() {
-        reqwest::StatusCode::OK => Some((format!("Correctly deleted note number {} from the enemy. The remining notes might have been reordered.", note_idx), false)),
-        reqwest::StatusCode::NOT_FOUND => Some((
-            NOT_FOUND_MSG.to_string(),
+        reqwest::StatusCode::OK => Some((
+            format!(
+                "Correctly deleted note number {} from the enemy.
+                    The remining notes might have been reordered.",
+                note_idx
+            ),
             false,
         )),
+        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         _ => unexpected_response!(response, false),
     };
 }
