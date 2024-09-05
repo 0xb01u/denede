@@ -17,4 +17,5 @@
  */
 pub mod code;
 pub mod license;
+pub mod necronomicon;
 pub mod ping;

@@ -36,6 +36,36 @@ impl EventHandler for Bot {
                 "ping" => commands::ping::run(&command.data.options(), &ctx, &interaction).await,
                 "license" => commands::license::run(&command.data.options()),
                 "code" => commands::code::run(&command.data.options()),
+
+                /* Necronomicon integration commands: */
+                "addenemy" => commands::necronomicon::addenemy(&command.data.options()).await,
+                "enemy" => commands::necronomicon::enemy(&command.data.options()).await,
+                "setbasics" => commands::necronomicon::setbasics(&command.data.options()).await,
+                "setattrs" => commands::necronomicon::setattrs(&command.data.options()).await,
+                "setskills" => commands::necronomicon::setskills(&command.data.options()).await,
+                "setriv" => commands::necronomicon::setriv(&command.data.options()).await,
+                "setabilitytrees" => {
+                    commands::necronomicon::setabilitytrees(&command.data.options()).await
+                }
+                "addability" => commands::necronomicon::addability(&command.data.options()).await,
+                "addnote" => commands::necronomicon::addnote(&command.data.options()).await,
+                "delnote" => commands::necronomicon::delnote(&command.data.options()).await,
+                "revealenemy" => commands::necronomicon::revealenemy(&command.data.options()).await,
+                "revealbasics" => {
+                    commands::necronomicon::revealbasics(&command.data.options()).await
+                }
+                "revealattrs" => commands::necronomicon::revealattrs(&command.data.options()).await,
+                "revealskills" => {
+                    commands::necronomicon::revealskills(&command.data.options()).await
+                }
+                "revealriv" => commands::necronomicon::revealriv(&command.data.options()).await,
+                "revealability" => {
+                    commands::necronomicon::revealability(&command.data.options()).await
+                }
+                "addriveffect" => {
+                    commands::necronomicon::addriveffect(&command.data.options()).await
+                }
+                "addtrait" => commands::necronomicon::addtrait(&command.data.options()).await,
                 _ => None,
             };
 
@@ -206,16 +236,15 @@ impl EventHandler for Bot {
         }
 
         // Register slash commands:
-        let commands = Command::set_global_commands(
-            &ctx.http,
-            vec![
-                commands::ping::register(),
-                commands::license::register(),
-                commands::code::register(),
-            ],
-        )
-        .await
-        .unwrap();
+        let mut commands_to_register = vec![
+            commands::ping::register(),
+            commands::license::register(),
+            commands::code::register(),
+        ];
+        commands_to_register.append(&mut commands::necronomicon::register());
+        let commands = Command::set_global_commands(&ctx.http, commands_to_register)
+            .await
+            .unwrap();
 
         println!(
             "Registered the following commands: {:?}",

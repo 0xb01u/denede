@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.31"
 regex = "1.10.0"
-reqwest = "0.11.22"
+reqwest = { version = "0.11.22", features = ["json"] }
 serenity = { default-features = false, version = "0.12.0", features = [
     "client",
     "gateway",
@@ -18,3 +18,5 @@ serenity = { default-features = false, version = "0.12.0", features = [
 ] }
 rand = "0.8.5"
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
