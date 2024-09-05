@@ -234,18 +234,22 @@ fn sanitize_name(name: &str) -> String {
 
 /* Command functions: */
 
-const NOT_FOUND_MSG: &str = "Could not find the specified enemy on the system.
+const NOT_FOUND_MSG: &str = "Could not find the specified enemy on the system. \
 (Or something very wrong happened to the server.)";
 
 pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let enemy_name = get_cmd_opt!(options, 0, String);
 
-    let response = petition!(post, "/", enemy_name, ephemeral);
+    let response = petition!(post, "enemy/", enemy_name, ephemeral);
     return match response.status() {
         reqwest::StatusCode::CREATED => Some((
             "Enemy registered on the system correctly. Do not forget to reveal it, if necessary."
                 .to_string(),
+            ephemeral,
+        )),
+        reqwest::StatusCode::FORBIDDEN => Some((
+            "Seems like an enemy with that name already exists on the encyclopedia.".to_string(),
             ephemeral,
         )),
         _ => unexpected_response!(response, ephemeral),
@@ -254,9 +258,9 @@ pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 
 pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let enemy_name = get_cmd_opt!(options, 0, String);
 
-    let response = petition!(get, "/", enemy_name, ephemeral);
+    let response = petition!(get, "enemy/", enemy_name, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -290,7 +294,12 @@ pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
         traits,
     };
 
-    let response = petition!(post, format!("/{}/basics", enemy_name), basics, ephemeral);
+    let response = petition!(
+        post,
+        format!("enemy/{}/basics", enemy_name),
+        basics,
+        ephemeral
+    );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly updated the enemy's basic information.".to_string(),
@@ -299,7 +308,7 @@ pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), ephemeral)),
         reqwest::StatusCode::BAD_REQUEST => Some((
             format!(
-                "Could not update the enemy's basic information because some data is unknown
+                "Could not update the enemy's basic information because some data is unknown \
                     to the system. Unrecognized item: **{}**.",
                 response.text().await.expect(
                     "Could not decode a server's response's body as text (command: setbasics)."
@@ -330,7 +339,12 @@ pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
         cha_sav: get_cmd_opt!(options, 12, Integer) as u8,
     };
 
-    let response = petition!(post, format!("/{}/attribues", enemy_name), attrs, ephemeral);
+    let response = petition!(
+        post,
+        format!("enemy/{}/attribues", enemy_name),
+        attrs,
+        ephemeral
+    );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly updated the enemy's ability modifiers.".to_string(),
@@ -350,7 +364,12 @@ pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
 
-    let response = petition!(post, format!("/{}/skills", enemy_name), skills, ephemeral);
+    let response = petition!(
+        post,
+        format!("enemy/{}/skills", enemy_name),
+        skills,
+        ephemeral
+    );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly updated the enemy's skills.".to_string(),
@@ -383,7 +402,7 @@ pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         vulnerabilities,
     };
 
-    let response = petition!(post, format!("/{}/riv", enemy_name), riv, ephemeral);
+    let response = petition!(post, format!("enemy/{}/riv", enemy_name), riv, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly updated the enemy's resistances, immunities, and vulnerabilities."
@@ -393,7 +412,7 @@ pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), ephemeral)),
         reqwest::StatusCode::BAD_REQUEST => Some((
             format!(
-                "Could not update the enemy's resistances, immunities, and vulnerabilities
+                "Could not update the enemy's resistances, immunities, and vulnerabilities \
                     because some data is unknown to the system. Unrecognized item: **{}**.",
                 response.text().await.expect(
                     "Could not decode a server's response's body as text (command: setriv)."
@@ -416,7 +435,7 @@ pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, 
 
     let response = petition!(
         post,
-        format!("/{}/ability_trees", enemy_name),
+        format!("enemy/{}/ability_trees", enemy_name),
         tree,
         ephemeral
     );
@@ -442,7 +461,12 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
         tree: get_cmd_opt!(options, 3, String).to_string(),
     };
 
-    let response = petition!(post, format!("/{}/ability", enemy_name), ability, ephemeral);
+    let response = petition!(
+        post,
+        format!("enemy/{}/ability", enemy_name),
+        ability,
+        ephemeral
+    );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!("Correctly updated the enemy's {} ability.", ability_name),
@@ -451,7 +475,7 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), ephemeral)),
         reqwest::StatusCode::BAD_REQUEST => Some((
             format!(
-                "Could not update the enemy's resistances, immunities, and vulnerabilities
+                "Could not update the enemy's resistances, immunities, and vulnerabilities \
                     because some data is unknown to the system. Unrecognized item: **{}**.",
                 response.text().await.expect(
                     "Could not decode a server's response's body as text (command: setability)."
@@ -468,7 +492,7 @@ pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let note = get_cmd_opt!(options, 1, String).to_string();
 
-    let response = petition!(post, format!("/{}/note", enemy_name), note);
+    let response = petition!(post, format!("enemy/{}/note", enemy_name), note);
     return match response.status() {
         reqwest::StatusCode::OK => {
             Some(("Correctly added the note to the enemy.".to_string(), false))
@@ -483,11 +507,11 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let note_idx = get_cmd_opt!(options, 1, Integer);
 
-    let response = petition!(delete, format!("/{}/note", enemy_name), note_idx);
+    let response = petition!(delete, format!("enemy/{}/note", enemy_name), note_idx);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
-                "Correctly deleted note number {} from the enemy.
+                "Correctly deleted note number {} from the enemy. \
                     The remining notes might have been reordered.",
                 note_idx
             ),
@@ -501,11 +525,13 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
 
-    let response = petition!(post, format!("/{}/reveal", enemy_name));
+    let response = petition!(post, format!("enemy/{}/reveal", enemy_name));
     return match response.status() {
         reqwest::StatusCode::CREATED => Some((
             format!(
-                "Enemy revealed: {}",
+                "Enemy revealed: {}/{}",
+                env::var("SERVER_EXTERNAL_URL")
+                    .expect("SERVER_INTERNAL_URL environmental variable not set."),
                 response.text().await.expect(
                     "Could not decode a server's response's body as text (command: revealenemy)."
                 )
@@ -522,7 +548,7 @@ pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 
     let response = petition!(
         post,
-        format!("/{}/reveal/basics", sanitize_name(enemy_name))
+        format!("enemy/{}/reveal/basics", sanitize_name(enemy_name))
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
@@ -537,7 +563,10 @@ pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, 0, String);
 
-    let response = petition!(post, format!("/{}/reveal/attrs", sanitize_name(enemy_name)));
+    let response = petition!(
+        post,
+        format!("enemy/{}/reveal/attrs", sanitize_name(enemy_name))
+    );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!("Revealed {}'s ability modifiers on its page", enemy_name),
@@ -553,7 +582,7 @@ pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 
     let response = petition!(
         post,
-        format!("/{}/reveal/skills", sanitize_name(enemy_name))
+        format!("enemy/{}/reveal/skills", sanitize_name(enemy_name))
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
@@ -568,7 +597,10 @@ pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, 0, String);
 
-    let response = petition!(post, format!("/{}/reveal/riv", sanitize_name(enemy_name)));
+    let response = petition!(
+        post,
+        format!("enemy/{}/reveal/riv", sanitize_name(enemy_name))
+    );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -594,7 +626,7 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
 
     let response = petition!(
         post,
-        format!("/{}/reveal/ability", sanitize_name(enemy_name)),
+        format!("enemy/{}/reveal/ability", sanitize_name(enemy_name)),
         ability
     );
     return match response.status() {
@@ -608,8 +640,8 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         reqwest::StatusCode::BAD_REQUEST => Some((
             format!(
-                "Could not update the enemy's abilities because some data is unknown to the system.
-                Unrecognized item: **{}**.\n
+                "Could not update the enemy's abilities because some data is unknown to the system. \
+                Unrecognized item: **{}**.\n\
                 (Maybe the ability was not previously added to the system using `/addability`?)",
                 response.text().await.expect(
                     "Could not decode a server's response's body as text (command: setability)."
@@ -723,22 +755,22 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "HP",
+                "hp",
                 "The HP of the enemy.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "AC",
+                "ac",
                 "The AC of the enemy.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Mov",
+                "mov",
                 "The movement speed of the enemy.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "Traits",
+                "traits",
                 "Comma-separated list of the traits of the enemy.",
             ))
             .add_option(
@@ -760,62 +792,62 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "STR",
+                "str",
                 "Strenth modifier.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "DEX",
+                "dex",
                 "Dexterity modifier.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "CON",
+                "con",
                 "Constitution modifier.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "INT",
+                "int",
                 "Intelligence modifier.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "WIS",
+                "wis",
                 "Wisdom modifier.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "CHA",
+                "cha",
                 "Charisma modifier.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Saving STR",
+                "saving_str",
                 "Strenth modifier Saving fors.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Saving DEX",
+                "saving_dex",
                 "Dexterity modifier Saving fors.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Saving CON",
+                "saving_con",
                 "Constitution modifier Saving fors.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Saving INT",
+                "saving_int",
                 "Intelligence modifier Saving fors.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Saving WIS",
+                "saving_wis",
                 "Wisdom modifier Saving fors.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "Saving CHA",
+                "saving_cha",
                 "Charisma modifier Saving fors.",
             ))
             .add_option(
@@ -891,7 +923,7 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "ability tree names",
+                "ability_tree_names",
                 "Comma-separated list of the names of the ability trees of the enemy.",
             ))
             .add_option(
@@ -913,7 +945,7 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "ability name",
+                "ability_name",
                 "The name of the ability to add to the enemy.",
             ))
             .add_option(CreateCommandOption::new(
@@ -923,7 +955,7 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "ability tree",
+                "ability_tree",
                 "The name of the ability tree the ability belongs to.",
             ))
             .add_option(
@@ -959,7 +991,7 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Integer,
-                "note number",
+                "note_number",
                 "The number of the note to remove, as specified on the enemy's page.",
             )),
     );
@@ -1013,17 +1045,17 @@ pub fn register() -> Vec<CreateCommand> {
             .description("Reveal an ability of an enemy.")
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "enemy name",
+                "enemy_name",
                 "The name of the enemy.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "tree name",
+                "tree_name",
                 "The name of the ability tree to which the ability to reveal belongs.",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "ability name",
+                "ability_name",
                 "The name of the ability to reveal.",
             )),
     );
@@ -1071,7 +1103,7 @@ pub fn register() -> Vec<CreateCommand> {
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::String,
-                "category",
+                "subcategory",
                 "The subcategory inside the category the trait belongs to.",
             ))
             .add_option(CreateCommandOption::new(
