@@ -83,18 +83,21 @@ struct Trait {
 #[macro_export]
 macro_rules! get_cmd_opt {
     /* Get an option that exists from the list of passed options. */
-    ($options:ident, $idx:expr, $type:ident) => {{
+    ($options:ident, $name:expr, $type:ident) => {{
         let ResolvedOption {
             value: ResolvedValue::$type(tmp),
             ..
-        } = $options.get($idx).expect(
-            format!(
-                "Could not get option in {}[{}].",
-                stringify!($options),
-                $idx
+        } = $options
+            .iter()
+            .find(|ResolvedOption { name: name, .. }| name == &$name)
+            .expect(
+                format!(
+                    "Could not get option in {}.{}.",
+                    stringify!($options),
+                    $name
+                )
+                .as_str(),
             )
-            .as_str(),
-        )
         else {
             panic!(concat!(
                 stringify!($options),
@@ -107,24 +110,14 @@ macro_rules! get_cmd_opt {
         };
         *tmp
     }};
-    /* Get an option that may exist from the tail of the list of passed options. */
-    ($options:ident, last, $type:ident, $default:expr) => {{
-        if let Some(ResolvedOption {
-            value: ResolvedValue::$type(tmp),
-            ..
-        }) = $options.last()
-        {
-            *tmp
-        } else {
-            $default
-        }
-    }};
     /* Get an option that may exist from the list of passed options. */
-    ($options:ident, $idx:expr, $type:ident, $default:expr) => {{
+    ($options:ident, $name:expr, $type:ident, $default:expr) => {{
         if let Some(ResolvedOption {
             value: ResolvedValue::$type(tmp),
             ..
-        }) = $options.get($idx)
+        }) = $options
+            .iter()
+            .find(|ResolvedOption { name: name, .. }| name == &$name)
         {
             *tmp
         } else {
@@ -239,8 +232,8 @@ const NOT_FOUND_MSG: &str = "Could not find the specified enemy on the system. \
 (Or something very wrong happened to the server.)";
 
 pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = get_cmd_opt!(options, "name", String);
 
     let response = petition!(post, "enemy/", enemy_name, ephemeral);
     return match response.status() {
@@ -258,8 +251,8 @@ pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 }
 
 pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
 
     let response = petition!(get, "enemy/", enemy_name, ephemeral);
     return match response.status() {
@@ -280,18 +273,18 @@ pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let traits = get_cmd_opt!(options, 5, String)
+    let traits = get_cmd_opt!(options, "traits", String)
         .split(",")
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
     let basics = EnemyBasicsForm {
-        enemy_type: get_cmd_opt!(options, 1, String).to_string(),
-        hp: get_cmd_opt!(options, 2, Integer) as i16,
-        ac: get_cmd_opt!(options, 3, Integer) as u8,
-        mov: get_cmd_opt!(options, 4, Integer) as u8,
+        enemy_type: get_cmd_opt!(options, "type", String).to_string(),
+        hp: get_cmd_opt!(options, "hp", Integer) as i16,
+        ac: get_cmd_opt!(options, "ac", Integer) as u8,
+        mov: get_cmd_opt!(options, "mov", Integer) as u8,
         traits,
     };
 
@@ -322,22 +315,22 @@ pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 }
 
 pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
     let attrs = EnemyAttributesForm {
-        str: get_cmd_opt!(options, 1, Integer) as u8,
-        dex: get_cmd_opt!(options, 2, Integer) as u8,
-        con: get_cmd_opt!(options, 3, Integer) as u8,
-        int: get_cmd_opt!(options, 4, Integer) as u8,
-        wis: get_cmd_opt!(options, 5, Integer) as u8,
-        cha: get_cmd_opt!(options, 6, Integer) as u8,
-        str_sav: get_cmd_opt!(options, 7, Integer) as u8,
-        dex_sav: get_cmd_opt!(options, 8, Integer) as u8,
-        con_sav: get_cmd_opt!(options, 9, Integer) as u8,
-        int_sav: get_cmd_opt!(options, 10, Integer) as u8,
-        wis_sav: get_cmd_opt!(options, 11, Integer) as u8,
-        cha_sav: get_cmd_opt!(options, 12, Integer) as u8,
+        str: get_cmd_opt!(options, "str", Integer) as u8,
+        dex: get_cmd_opt!(options, "dex", Integer) as u8,
+        con: get_cmd_opt!(options, "con", Integer) as u8,
+        int: get_cmd_opt!(options, "int", Integer) as u8,
+        wis: get_cmd_opt!(options, "wis", Integer) as u8,
+        cha: get_cmd_opt!(options, "cha", Integer) as u8,
+        str_sav: get_cmd_opt!(options, "saving_str", Integer) as u8,
+        dex_sav: get_cmd_opt!(options, "saving_dex", Integer) as u8,
+        con_sav: get_cmd_opt!(options, "saving_con", Integer) as u8,
+        int_sav: get_cmd_opt!(options, "saving_int", Integer) as u8,
+        wis_sav: get_cmd_opt!(options, "saving_wis", Integer) as u8,
+        cha_sav: get_cmd_opt!(options, "saving_cha", Integer) as u8,
     };
 
     let response = petition!(
@@ -357,10 +350,10 @@ pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 }
 
 pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let skills = get_cmd_opt!(options, 1, String)
+    let skills = get_cmd_opt!(options, "skills", String)
         .split(",")
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
@@ -382,18 +375,18 @@ pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 }
 
 pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let resistances = get_cmd_opt!(options, 1, String)
+    let resistances = get_cmd_opt!(options, "resistances", String)
         .split(",")
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
-    let immunities = get_cmd_opt!(options, 2, String)
+    let immunities = get_cmd_opt!(options, "immunities", String)
         .split(",")
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
-    let vulnerabilities = get_cmd_opt!(options, 3, String)
+    let vulnerabilities = get_cmd_opt!(options, "vulnerabilities", String)
         .split(",")
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
@@ -426,10 +419,10 @@ pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let tree = get_cmd_opt!(options, 1, String)
+    let tree = get_cmd_opt!(options, "ability_tree_names", String)
         .split(",")
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
@@ -451,15 +444,15 @@ pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, 
 }
 
 pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let ability_name = get_cmd_opt!(options, 1, String).to_string();
+    let ability_name = get_cmd_opt!(options, "ability_name", String).to_string();
 
     let ability = EnemyAbilityForm {
         name: ability_name.clone(),
-        description: get_cmd_opt!(options, 2, String).to_string(),
-        tree: get_cmd_opt!(options, 3, String).to_string(),
+        tree: get_cmd_opt!(options, "ability_tree", String).to_string(),
+        description: get_cmd_opt!(options, "description", String, "").to_string(),
     };
 
     let response = petition!(
@@ -489,9 +482,9 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
 }
 
 pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let note = get_cmd_opt!(options, 1, String).to_string();
+    let note = get_cmd_opt!(options, "note", String).to_string();
 
     let response = petition!(post, format!("/enemy/{}/note", enemy_name), note);
     return match response.status() {
@@ -504,9 +497,9 @@ pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let note_idx = get_cmd_opt!(options, 1, Integer);
+    let note_idx = get_cmd_opt!(options, "note_number", Integer);
 
     let response = petition!(delete, format!("/enemy/{}/note", enemy_name), note_idx);
     return match response.status() {
@@ -524,7 +517,7 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
     let response = petition!(post, format!("/enemy/{}/reveal", enemy_name));
     return match response.status() {
@@ -545,7 +538,7 @@ pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 }
 
 pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
 
     let response = petition!(
         post,
@@ -562,7 +555,7 @@ pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 }
 
 pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
 
     let response = petition!(
         post,
@@ -579,7 +572,7 @@ pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 }
 
 pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
 
     let response = petition!(
         post,
@@ -596,7 +589,7 @@ pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 }
 
 pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
 
     let response = petition!(
         post,
@@ -615,12 +608,12 @@ pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
     };
 }
 pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, 0, String);
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
 
-    let ability_name = get_cmd_opt!(options, 2, String).to_string();
+    let ability_name = get_cmd_opt!(options, "ability_name", String).to_string();
 
     let ability = EnemyAbilityForm {
-        tree: get_cmd_opt!(options, 1, String).to_string(),
+        tree: get_cmd_opt!(options, "tree_name", String).to_string(),
         name: ability_name.clone(),
         description: "".to_string(),
     };
@@ -655,10 +648,10 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
 }
 
 pub async fn addriveffect(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
 
-    let name = get_cmd_opt!(options, 0, String).to_string();
-    let category = get_cmd_opt!(options, 1, String).to_string();
+    let name = get_cmd_opt!(options, "name", String).to_string();
+    let category = get_cmd_opt!(options, "type", String).to_string();
 
     let riv_effect = RivEffect {
         name: name.clone(),
@@ -679,17 +672,17 @@ pub async fn addriveffect(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 }
 
 pub async fn addtrait(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, last, Boolean, true);
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
 
-    let name = get_cmd_opt!(options, 0, String);
-    let category = get_cmd_opt!(options, 1, String);
-    let subcategory = get_cmd_opt!(options, 2, String);
+    let name = get_cmd_opt!(options, "name", String);
+    let category = get_cmd_opt!(options, "category", String);
+    let subcategory = get_cmd_opt!(options, "subcategory", String);
 
     let t = Trait {
         name: name.to_string(),
         category: category.to_string(),
         subcategory: subcategory.to_string(),
-        description: get_cmd_opt!(options, 3, String).to_string(),
+        description: get_cmd_opt!(options, "description", String).to_string(),
     };
 
     let response = petition!(post, "/trait", t, ephemeral);
@@ -846,7 +839,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
                     "saving_str",
-                    "Strenth modifier Saving fors.",
+                    "Strenth modifier for saving throws.",
                 )
                 .required(true),
             )
@@ -854,7 +847,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
                     "saving_dex",
-                    "Dexterity modifier Saving fors.",
+                    "Dexterity modifier for saving throws.",
                 )
                 .required(true),
             )
@@ -862,7 +855,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
                     "saving_con",
-                    "Constitution modifier Saving fors.",
+                    "Constitution modifier for saving throws.",
                 )
                 .required(true),
             )
@@ -870,7 +863,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
                     "saving_int",
-                    "Intelligence modifier Saving fors.",
+                    "Intelligence modifier for saving throws.",
                 )
                 .required(true),
             )
@@ -878,7 +871,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
                     "saving_wis",
-                    "Wisdom modifier Saving fors.",
+                    "Wisdom modifier for saving throws.",
                 )
                 .required(true),
             )
@@ -886,7 +879,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
                     "saving_cha",
-                    "Charisma modifier Saving fors.",
+                    "Charisma modifier for saving throws.",
                 )
                 .required(true),
             )
@@ -1032,8 +1025,8 @@ pub fn register() -> Vec<CreateCommand> {
                     "description",
                     "The description of the ability to add.",
                 )
-                .required(true),
-            ) // TODO Make non-required?
+                .required(false),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -1085,7 +1078,7 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "name",
+                    "enemy",
                     "The name of the enemy.",
                 )
                 .required(true),
@@ -1097,7 +1090,7 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "name",
+                    "enemy",
                     "The name of the enemy.",
                 )
                 .required(true),
@@ -1109,7 +1102,7 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "name",
+                    "enemy",
                     "The name of the enemy.",
                 )
                 .required(true),
@@ -1121,7 +1114,7 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "name",
+                    "enemy",
                     "The name of the enemy.",
                 )
                 .required(true),
@@ -1133,7 +1126,7 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "name",
+                    "enemy",
                     "The name of the enemy.",
                 )
                 .required(true),
@@ -1145,7 +1138,7 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "enemy_name",
+                    "enemy",
                     "The name of the enemy.",
                 )
                 .required(true),
