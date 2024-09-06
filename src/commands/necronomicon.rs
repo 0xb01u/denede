@@ -138,9 +138,10 @@ macro_rules! get_cmd_opt {
  */
 #[macro_export]
 macro_rules! endpoint {
+    // TODO: Check proper slash usage.
     ($end:expr) => {
         format!(
-            "{}/{}",
+            "{}{}",
             env::var("SERVER_INTERNAL_URL")
                 .expect("SERVER_INTERNAL_URL environmental variable not set."),
             $end,
@@ -296,7 +297,7 @@ pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 
     let response = petition!(
         post,
-        format!("enemy/{}/basics", enemy_name),
+        format!("/enemy/{}/basics", enemy_name),
         basics,
         ephemeral
     );
@@ -341,7 +342,7 @@ pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 
     let response = petition!(
         post,
-        format!("enemy/{}/attribues", enemy_name),
+        format!("/enemy/{}/attribues", enemy_name),
         attrs,
         ephemeral
     );
@@ -366,7 +367,7 @@ pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 
     let response = petition!(
         post,
-        format!("enemy/{}/skills", enemy_name),
+        format!("/enemy/{}/skills", enemy_name),
         skills,
         ephemeral
     );
@@ -402,7 +403,7 @@ pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         vulnerabilities,
     };
 
-    let response = petition!(post, format!("enemy/{}/riv", enemy_name), riv, ephemeral);
+    let response = petition!(post, format!("/enemy/{}/riv", enemy_name), riv, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly updated the enemy's resistances, immunities, and vulnerabilities."
@@ -435,7 +436,7 @@ pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, 
 
     let response = petition!(
         post,
-        format!("enemy/{}/ability_trees", enemy_name),
+        format!("/enemy/{}/ability_trees", enemy_name),
         tree,
         ephemeral
     );
@@ -463,7 +464,7 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
 
     let response = petition!(
         post,
-        format!("enemy/{}/ability", enemy_name),
+        format!("/enemy/{}/ability", enemy_name),
         ability,
         ephemeral
     );
@@ -492,7 +493,7 @@ pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let note = get_cmd_opt!(options, 1, String).to_string();
 
-    let response = petition!(post, format!("enemy/{}/note", enemy_name), note);
+    let response = petition!(post, format!("/enemy/{}/note", enemy_name), note);
     return match response.status() {
         reqwest::StatusCode::OK => {
             Some(("Correctly added the note to the enemy.".to_string(), false))
@@ -507,7 +508,7 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let note_idx = get_cmd_opt!(options, 1, Integer);
 
-    let response = petition!(delete, format!("enemy/{}/note", enemy_name), note_idx);
+    let response = petition!(delete, format!("/enemy/{}/note", enemy_name), note_idx);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -525,7 +526,7 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = sanitize_name(get_cmd_opt!(options, 0, String));
 
-    let response = petition!(post, format!("enemy/{}/reveal", enemy_name));
+    let response = petition!(post, format!("/enemy/{}/reveal", enemy_name));
     return match response.status() {
         reqwest::StatusCode::CREATED => Some((
             format!(
@@ -548,7 +549,7 @@ pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 
     let response = petition!(
         post,
-        format!("enemy/{}/reveal/basics", sanitize_name(enemy_name))
+        format!("/enemy/{}/reveal/basics", sanitize_name(enemy_name))
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
@@ -565,11 +566,11 @@ pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 
     let response = petition!(
         post,
-        format!("enemy/{}/reveal/attrs", sanitize_name(enemy_name))
+        format!("/enemy/{}/reveal/attrs", sanitize_name(enemy_name))
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
-            format!("Revealed {}'s ability modifiers on its page", enemy_name),
+            format!("Revealed {}'s ability modifiers on its page.", enemy_name),
             false,
         )),
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
@@ -582,11 +583,11 @@ pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 
     let response = petition!(
         post,
-        format!("enemy/{}/reveal/skills", sanitize_name(enemy_name))
+        format!("/enemy/{}/reveal/skills", sanitize_name(enemy_name))
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
-            format!("Revealed {}'s skills on its page", enemy_name),
+            format!("Revealed {}'s skills on its page.", enemy_name),
             false,
         )),
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
@@ -599,12 +600,12 @@ pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 
     let response = petition!(
         post,
-        format!("enemy/{}/reveal/riv", sanitize_name(enemy_name))
+        format!("/enemy/{}/reveal/riv", sanitize_name(enemy_name))
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
-                "Revealed {}'s resistances, immunities, and vulnerabilities on its page",
+                "Revealed {}'s resistances, immunities, and vulnerabilities on its page.",
                 enemy_name
             ),
             false,
@@ -626,13 +627,13 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
 
     let response = petition!(
         post,
-        format!("enemy/{}/reveal/ability", sanitize_name(enemy_name)),
+        format!("/enemy/{}/reveal/ability", sanitize_name(enemy_name)),
         ability
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
-                "Revealed {}'s {} ability on its page",
+                "Revealed {}'s {} ability on its page.",
                 enemy_name, ability_name
             ),
             false,
@@ -709,11 +710,14 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("addenemy")
             .description("Add an enemy to the bestiary.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy to create.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy to create.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -726,11 +730,14 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("enemy")
             .description("Get the URL for an enemy on the bestiary.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -743,36 +750,46 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("setbasics")
             .description("Set basic information (HP, AC, movement and traits) for an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "type",
-                "The type, or short description, of this enemy as a living being.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "hp",
-                "The HP of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "ac",
-                "The AC of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "mov",
-                "The movement speed of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "traits",
-                "Comma-separated list of the traits of the enemy.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "type",
+                    "The type, or short description, of this enemy as a living being.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "hp", "The HP of the enemy.")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "ac", "The AC of the enemy.")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "mov",
+                    "The movement speed of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "traits",
+                    "Comma-separated list of the traits of the enemy.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -785,71 +802,94 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("setattrs")
             .description("Set the ability modifiers of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "str",
-                "Strenth modifier.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "dex",
-                "Dexterity modifier.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "con",
-                "Constitution modifier.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "int",
-                "Intelligence modifier.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "wis",
-                "Wisdom modifier.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "cha",
-                "Charisma modifier.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "saving_str",
-                "Strenth modifier Saving fors.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "saving_dex",
-                "Dexterity modifier Saving fors.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "saving_con",
-                "Constitution modifier Saving fors.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "saving_int",
-                "Intelligence modifier Saving fors.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "saving_wis",
-                "Wisdom modifier Saving fors.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "saving_cha",
-                "Charisma modifier Saving fors.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "str", "Strenth modifier.")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "dex", "Dexterity modifier.")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "con",
+                    "Constitution modifier.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "int",
+                    "Intelligence modifier.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "wis", "Wisdom modifier.")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "cha", "Charisma modifier.")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "saving_str",
+                    "Strenth modifier Saving fors.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "saving_dex",
+                    "Dexterity modifier Saving fors.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "saving_con",
+                    "Constitution modifier Saving fors.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "saving_int",
+                    "Intelligence modifier Saving fors.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "saving_wis",
+                    "Wisdom modifier Saving fors.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "saving_cha",
+                    "Charisma modifier Saving fors.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -862,16 +902,22 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("setskills")
             .description("Set the skills of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "skills",
-                "Comma-separated list of the names of the skills of the enemy.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "skills",
+                    "Comma-separated list of the names of the skills of the enemy.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -884,26 +930,38 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("setriv")
             .description("Set the resistances, immunities and vulnerabilities of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "resistances",
-                "Comma-separated list of the resistances of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "immunities",
-                "Comma-separated list of the immunities of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "vulnerability",
-                "Comma-separated list of the vulnerabilities of the enemy.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "resistances",
+                    "Comma-separated list of the resistances of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "immunities",
+                    "Comma-separated list of the immunities of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "vulnerabilities",
+                    "Comma-separated list of the vulnerabilities of the enemy.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -916,16 +974,22 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("setabilitytrees")
             .description("Set the names of the ability trees of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "ability_tree_names",
-                "Comma-separated list of the names of the ability trees of the enemy.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "ability_tree_names",
+                    "Comma-separated list of the names of the ability trees of the enemy.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -938,26 +1002,38 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("addability")
             .description("Add an ability to an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "ability_name",
-                "The name of the ability to add to the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "description",
-                "The description of the ability to add.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "ability_tree",
-                "The name of the ability tree the ability belongs to.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "ability_tree",
+                    "The name of the ability tree the ability belongs to.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "ability_name",
+                    "The name of the ability to add to the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "description",
+                    "The description of the ability to add.",
+                )
+                .required(true),
+            ) // TODO Make non-required?
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
@@ -970,94 +1046,126 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("addnote")
             .description("Add a note to an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "note",
-                "The note to add.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::String, "note", "The note to add.")
+                    .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("delnote")
             .description("Remove a note from an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "note_number",
-                "The number of the note to remove, as specified on the enemy's page.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Integer,
+                    "note_number",
+                    "The number of the note to remove, as specified on the enemy's page.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("revealenemy")
             .description("Reveal an enemy and make it available on the encyclopeida.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("revealbasics")
             .description("Reveal the basic information (HP, AC, Mov) of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("revealattrs")
             .description("Reveal the ability modifiers (attributes/stats) of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("revealskills")
             .description("Reveal the skills of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("revealriv")
             .description("Reveal the resistances, immunities and vulnerabilities of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the enemy.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("revealability")
             .description("Reveal an ability of an enemy.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "enemy_name",
-                "The name of the enemy.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "tree_name",
-                "The name of the ability tree to which the ability to reveal belongs.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "ability_name",
-                "The name of the ability to reveal.",
-            )),
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy_name",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "tree_name",
+                    "The name of the ability tree to which the ability to reveal belongs.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "ability_name",
+                    "The name of the ability to reveal.",
+                )
+                .required(true),
+            ),
     );
     commands.push(
         CreateCommand::new("addriveffect")
@@ -1065,11 +1173,14 @@ pub fn register() -> Vec<CreateCommand> {
                 "Add a new effect susceptible of resistance, immunity or vulnerability
                  to the system.",
             )
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the effect.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the effect.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1091,26 +1202,38 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("addtrait")
             .description("Add a new trait for enemies.")
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "name",
-                "The name of the trait.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "category",
-                "The category the trait belongs to.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "subcategory",
-                "The subcategory inside the category the trait belongs to.",
-            ))
-            .add_option(CreateCommandOption::new(
-                CommandOptionType::String,
-                "description",
-                "The description of the trait.",
-            ))
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the trait.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "category",
+                    "The category the trait belongs to.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "subcategory",
+                    "The subcategory inside the category the trait belongs to.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "description",
+                    "The description of the trait.",
+                )
+                .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
