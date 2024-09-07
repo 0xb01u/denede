@@ -50,6 +50,7 @@ impl EventHandler for Bot {
                 "addability" => commands::necronomicon::addability(&command.data.options()).await,
                 "addnote" => commands::necronomicon::addnote(&command.data.options()).await,
                 "delnote" => commands::necronomicon::delnote(&command.data.options()).await,
+                "setimage" => commands::necronomicon::setimage(&command.data.options()).await,
                 "revealenemy" => commands::necronomicon::revealenemy(&command.data.options()).await,
                 "revealbasics" => {
                     commands::necronomicon::revealbasics(&command.data.options()).await

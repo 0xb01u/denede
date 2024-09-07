@@ -147,7 +147,7 @@ macro_rules! endpoint {
  */
 #[macro_export]
 macro_rules! petition {
-    ($req_type:ident, $endpoint:expr, $data:ident, $ephemeral:expr) => {{
+    ($req_type:ident, $endpoint:expr, $data:expr, $ephemeral:expr) => {{
         let client = reqwest::Client::new();
         match client
             .$req_type(endpoint!($endpoint))
@@ -164,7 +164,7 @@ macro_rules! petition {
             }
         }
     }};
-    ($req_type:ident, $endpoint:expr, $data:ident) => {{
+    ($req_type:ident, $endpoint:expr, $data:expr) => {{
         let client = reqwest::Client::new();
         match client
             .$req_type(endpoint!($endpoint))
@@ -235,7 +235,7 @@ pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
     let enemy_name = get_cmd_opt!(options, "name", String);
 
-    let response = petition!(post, "enemy/", enemy_name, ephemeral);
+    let response = petition!(post, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
         reqwest::StatusCode::CREATED => Some((
             "Enemy registered on the system correctly. Do not forget to reveal it, if necessary."
@@ -252,9 +252,9 @@ pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 
 pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(options, "name", String);
 
-    let response = petition!(get, "enemy/", enemy_name, ephemeral);
+    let response = petition!(get, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -513,6 +513,39 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         )),
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         _ => unexpected_response!(response, false),
+    };
+}
+
+pub async fn setimage(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+
+    let file = get_cmd_opt!(options, "image", Attachment);
+
+    if file.content_type == Some("image".to_string()) {
+        return Some((
+            "The attachment sent is not recognized as an image.".to_string(),
+            ephemeral,
+        ));
+    }
+
+    let response = petition!(post, format!("/enemy/{}/image", enemy_name), file.url);
+    return match response.status() {
+        reqwest::StatusCode::OK => Some((
+            "Correctly uploaded the enemy's image.".to_string(),
+            ephemeral,
+        )),
+        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), ephemeral)),
+        reqwest::StatusCode::BAD_REQUEST => Some((
+            format!(
+                "Could not set the enemy's image because some data is erroneous. Error: **{}**.",
+                response.text().await.expect(
+                    "Could not decode a server's response's body as text (command: setimage)."
+                )
+            ),
+            ephemeral,
+        )),
+        _ => unexpected_response!(response, ephemeral),
     };
 }
 
@@ -1072,6 +1105,36 @@ pub fn register() -> Vec<CreateCommand> {
                 .required(true),
             ),
     );
+    commands.push(
+        CreateCommand::new("setimage")
+            .description("Set an image for an enemy.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Attachment,
+                    "image",
+                    "The image to set.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
+    // TODO: use subcommands for reveals (serenity.rs documentation for that API part is somewhat
+    // vague, and I found no examples).
     commands.push(
         CreateCommand::new("revealenemy")
             .description("Reveal an enemy and make it available on the encyclopeida.")
