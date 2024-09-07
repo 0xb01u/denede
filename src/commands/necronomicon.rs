@@ -146,7 +146,7 @@ macro_rules! endpoint {
  * Macro to conveniently send petitions to the server and handle all related logic.
  */
 #[macro_export]
-macro_rules! petition {
+macro_rules! request {
     ($req_type:ident, $endpoint:expr, $data:expr, $ephemeral:expr) => {{
         let client = reqwest::Client::new();
         match client
@@ -235,7 +235,7 @@ pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
     let enemy_name = get_cmd_opt!(options, "name", String);
 
-    let response = petition!(post, "/enemy/", enemy_name, ephemeral);
+    let response = request!(post, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
         reqwest::StatusCode::CREATED => Some((
             "Enemy registered on the system correctly. Do not forget to reveal it, if necessary."
@@ -254,7 +254,7 @@ pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
     let enemy_name = get_cmd_opt!(options, "name", String);
 
-    let response = petition!(get, "/enemy/", enemy_name, ephemeral);
+    let response = request!(get, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -288,7 +288,7 @@ pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
         traits,
     };
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/basics", enemy_name),
         basics,
@@ -333,7 +333,7 @@ pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
         cha_sav: get_cmd_opt!(options, "saving_cha", Integer) as u8,
     };
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/attribues", enemy_name),
         attrs,
@@ -358,7 +358,7 @@ pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/skills", enemy_name),
         skills,
@@ -396,7 +396,7 @@ pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         vulnerabilities,
     };
 
-    let response = petition!(post, format!("/enemy/{}/riv", enemy_name), riv, ephemeral);
+    let response = request!(post, format!("/enemy/{}/riv", enemy_name), riv, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly updated the enemy's resistances, immunities, and vulnerabilities."
@@ -427,7 +427,7 @@ pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, 
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>();
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/ability_trees", enemy_name),
         tree,
@@ -455,7 +455,7 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
         description: get_cmd_opt!(options, "description", String, "").to_string(),
     };
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/ability", enemy_name),
         ability,
@@ -486,7 +486,7 @@ pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let note = get_cmd_opt!(options, "note", String).to_string();
 
-    let response = petition!(post, format!("/enemy/{}/note", enemy_name), note);
+    let response = request!(post, format!("/enemy/{}/note", enemy_name), note);
     return match response.status() {
         reqwest::StatusCode::OK => {
             Some(("Correctly added the note to the enemy.".to_string(), false))
@@ -501,7 +501,7 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
     let note_idx = get_cmd_opt!(options, "note_number", Integer);
 
-    let response = petition!(delete, format!("/enemy/{}/note", enemy_name), note_idx);
+    let response = request!(delete, format!("/enemy/{}/note", enemy_name), note_idx);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -529,7 +529,7 @@ pub async fn setimage(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
         ));
     }
 
-    let response = petition!(post, format!("/enemy/{}/image", enemy_name), file.url);
+    let response = request!(post, format!("/enemy/{}/image", enemy_name), file.url);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             "Correctly uploaded the enemy's image.".to_string(),
@@ -552,7 +552,7 @@ pub async fn setimage(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
 
-    let response = petition!(post, format!("/enemy/{}/reveal", enemy_name));
+    let response = request!(post, format!("/enemy/{}/reveal", enemy_name));
     return match response.status() {
         reqwest::StatusCode::CREATED => Some((
             format!(
@@ -573,7 +573,7 @@ pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, "enemy", String);
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/reveal/basics", sanitize_name(enemy_name))
     );
@@ -590,7 +590,7 @@ pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, "enemy", String);
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/reveal/attrs", sanitize_name(enemy_name))
     );
@@ -607,7 +607,7 @@ pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, "enemy", String);
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/reveal/skills", sanitize_name(enemy_name))
     );
@@ -624,7 +624,7 @@ pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, "enemy", String);
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/reveal/riv", sanitize_name(enemy_name))
     );
@@ -651,7 +651,7 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
         description: "".to_string(),
     };
 
-    let response = petition!(
+    let response = request!(
         post,
         format!("/enemy/{}/reveal/ability", sanitize_name(enemy_name)),
         ability
@@ -691,7 +691,7 @@ pub async fn addriveffect(options: &[ResolvedOption<'_>]) -> Option<(String, boo
         category: category.clone(),
     };
 
-    let response = petition!(post, "/riv", riv_effect, ephemeral);
+    let response = request!(post, "/riv", riv_effect, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
@@ -718,7 +718,7 @@ pub async fn addtrait(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
         description: get_cmd_opt!(options, "description", String).to_string(),
     };
 
-    let response = petition!(post, "/trait", t, ephemeral);
+    let response = request!(post, "/trait", t, ephemeral);
     return match response.status() {
         reqwest::StatusCode::OK => Some((
             format!(
