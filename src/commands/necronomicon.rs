@@ -335,7 +335,7 @@ pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 
     let response = request!(
         post,
-        format!("/enemy/{}/attribues", enemy_name),
+        format!("/enemy/{}/attributes", enemy_name),
         attrs,
         ephemeral
     );
