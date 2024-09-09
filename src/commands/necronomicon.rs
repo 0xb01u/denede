@@ -680,6 +680,22 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
     };
 }
 
+pub async fn refresh(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+
+    let enemy_name = get_cmd_opt!(options, "enemy", String);
+
+    let response = request!(
+        post,
+        format!("/enemy/{}/refresh", sanitize_name(enemy_name))
+    );
+    return match response.status() {
+        reqwest::StatusCode::OK => Some((format!("Refreshed {}'s page.", enemy_name,), ephemeral)),
+        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
+        _ => unexpected_response!(response, false),
+    };
+}
+
 pub async fn addriveffect(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
 
@@ -735,7 +751,7 @@ pub fn register() -> Vec<CreateCommand> {
     let mut commands = Vec::<CreateCommand>::with_capacity(18);
     commands.push(
         CreateCommand::new("addenemy")
-            .description("Add an enemy to the bestiary.")
+            .description("[Necronomicon] Add an enemy to the bestiary.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -755,7 +771,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("enemy")
-            .description("Get the URL for an enemy on the bestiary.")
+            .description("[Necronomicon] Get the URL for an enemy on the bestiary.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -775,7 +791,9 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setbasics")
-            .description("Set basic information (HP, AC, movement and traits) for an enemy.")
+            .description(
+                "[Necronomicon] Set basic information (HP, AC, movement and traits) for an enemy.",
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -827,7 +845,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setattrs")
-            .description("Set the ability modifiers of an enemy.")
+            .description("[Necronomicon] Set the ability modifiers of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -927,7 +945,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setskills")
-            .description("Set the skills of an enemy.")
+            .description("[Necronomicon] Set the skills of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -955,7 +973,9 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setriv")
-            .description("Set the resistances, immunities and vulnerabilities of an enemy.")
+            .description(
+                "[Necronomicon] Set the resistances, immunities and vulnerabilities of an enemy.",
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -999,7 +1019,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setabilitytrees")
-            .description("Set the names of the ability trees of an enemy.")
+            .description("[Necronomicon] Set the names of the ability trees of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1027,7 +1047,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("addability")
-            .description("Add an ability to an enemy.")
+            .description("[Necronomicon] Add an ability to an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1071,7 +1091,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("addnote")
-            .description("Add a note to an enemy.")
+            .description("[Necronomicon] Add a note to an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1087,7 +1107,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("delnote")
-            .description("Remove a note from an enemy.")
+            .description("[Necronomicon] Remove a note from an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1107,7 +1127,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setimage")
-            .description("Set an image for an enemy.")
+            .description("[Necronomicon] Set an image for an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1137,7 +1157,9 @@ pub fn register() -> Vec<CreateCommand> {
     // vague, and I found no examples).
     commands.push(
         CreateCommand::new("revealenemy")
-            .description("Reveal an enemy and make it available on the encyclopeida.")
+            .description(
+                "[Necronomicon] Reveal an enemy and make it available on the encyclopeida.",
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1149,7 +1171,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("revealbasics")
-            .description("Reveal the basic information (HP, AC, Mov) of an enemy.")
+            .description("[Necronomicon] Reveal the basic information (HP, AC, Mov) of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1161,7 +1183,9 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("revealattrs")
-            .description("Reveal the ability modifiers (attributes/stats) of an enemy.")
+            .description(
+                "[Necronomicon] Reveal the ability modifiers (attributes/stats) of an enemy.",
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1173,7 +1197,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("revealskills")
-            .description("Reveal the skills of an enemy.")
+            .description("[Necronomicon] Reveal the skills of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1185,7 +1209,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("revealriv")
-            .description("Reveal the resistances, immunities and vulnerabilities of an enemy.")
+            .description("[Necronomicon] Reveal the resistances, immunities and vulnerabilities of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1197,7 +1221,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("revealability")
-            .description("Reveal an ability of an enemy.")
+            .description("[Necronomicon] Reveal an ability of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1224,10 +1248,30 @@ pub fn register() -> Vec<CreateCommand> {
             ),
     );
     commands.push(
+        CreateCommand::new("refresh")
+            .description("[Necronomicon] Refresh an enemy's page.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
+    commands.push(
         CreateCommand::new("addriveffect")
             .description(
-                "Add a new effect susceptible of resistance, immunity or vulnerability
-                 to the system.",
+                "[Necronomicon] Add a new effect susceptible of resistance, immunity or \
+                vulnerability to the system.",
             )
             .add_option(
                 CreateCommandOption::new(
@@ -1257,7 +1301,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("addtrait")
-            .description("Add a new trait for enemies.")
+            .description("[Necronomicon] Add a new trait for enemies.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
