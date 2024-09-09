@@ -19,6 +19,7 @@ use serde::Serialize;
 use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::model::application::{CommandOptionType, ResolvedOption, ResolvedValue};
 use std::env;
+use std::fs;
 
 /* Data structures (serializable): */
 #[derive(Serialize)]
@@ -222,8 +223,8 @@ macro_rules! unexpected_response {
 }
 
 /* Utility functions: */
-fn sanitize_name(name: &str) -> String {
-    name.to_lowercase().replace(" ", "_")
+fn sanitize_name<Stringlike: AsRef<str>>(name: Stringlike) -> String {
+    name.as_ref().to_lowercase().replace(" ", "_")
 }
 
 /* Command functions: */
@@ -252,7 +253,12 @@ pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 
 pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = get_cmd_opt!(options, "name", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "name",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let response = request!(get, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
@@ -272,9 +278,38 @@ pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     };
 }
 
+pub async fn target(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let enemy_name = get_cmd_opt!(options, "name", String);
+
+    // Check that the enemy exists:
+    let response = request!(get, "/enemy/", enemy_name, true);
+    return match response.status() {
+        reqwest::StatusCode::OK => {
+            fs::write(".target_name", enemy_name).expect("Could not write into .target_name.");
+            Some((
+                format!(
+                    "Now all bot commands will target {} by default. \
+                     You can still explicitly specify another creature to target on \
+                     individual commands",
+                    enemy_name
+                ),
+                false,
+            ))
+        }
+        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
+        _ => unexpected_response!(response, false),
+    };
+}
+
 pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let traits = get_cmd_opt!(options, "traits", String)
         .split(",")
@@ -316,7 +351,13 @@ pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 
 pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let attrs = EnemyAttributesForm {
         str: get_cmd_opt!(options, "str", Integer) as u8,
@@ -351,7 +392,13 @@ pub async fn setattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 
 pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let skills = get_cmd_opt!(options, "skills", String)
         .split(",")
@@ -376,7 +423,13 @@ pub async fn setskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
 
 pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let resistances = get_cmd_opt!(options, "resistances", String)
         .split(",")
@@ -420,7 +473,13 @@ pub async fn setriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
 pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let tree = get_cmd_opt!(options, "ability_tree_names", String)
         .split(",")
@@ -445,7 +504,13 @@ pub async fn setabilitytrees(options: &[ResolvedOption<'_>]) -> Option<(String, 
 
 pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let ability_name = get_cmd_opt!(options, "ability_name", String).to_string();
 
@@ -482,7 +547,13 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
 }
 
 pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let note = get_cmd_opt!(options, "note", String).to_string();
 
@@ -497,7 +568,13 @@ pub async fn addnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let note_idx = get_cmd_opt!(options, "note_number", Integer);
 
@@ -518,7 +595,13 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 
 pub async fn setimage(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let file = get_cmd_opt!(options, "image", Attachment);
 
@@ -550,7 +633,13 @@ pub async fn setimage(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 }
 
 pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = sanitize_name(get_cmd_opt!(options, "enemy", String));
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+    let enemy_name = sanitize_name(enemy_name);
 
     let response = request!(post, format!("/enemy/{}/reveal", enemy_name));
     return match response.status() {
@@ -571,7 +660,12 @@ pub async fn revealenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 }
 
 pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let response = request!(
         post,
@@ -588,7 +682,12 @@ pub async fn revealbasics(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 }
 
 pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let response = request!(
         post,
@@ -605,7 +704,12 @@ pub async fn revealattrs(options: &[ResolvedOption<'_>]) -> Option<(String, bool
 }
 
 pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let response = request!(
         post,
@@ -622,7 +726,12 @@ pub async fn revealskills(options: &[ResolvedOption<'_>]) -> Option<(String, boo
 }
 
 pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let response = request!(
         post,
@@ -641,7 +750,12 @@ pub async fn revealriv(options: &[ResolvedOption<'_>]) -> Option<(String, bool)>
     };
 }
 pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let ability_name = get_cmd_opt!(options, "ability_name", String).to_string();
 
@@ -683,7 +797,12 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
 pub async fn refresh(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
 
-    let enemy_name = get_cmd_opt!(options, "enemy", String);
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
 
     let response = request!(
         post,
@@ -751,7 +870,7 @@ pub fn register() -> Vec<CreateCommand> {
     let mut commands = Vec::<CreateCommand>::with_capacity(18);
     commands.push(
         CreateCommand::new("addenemy")
-            .description("[Necronomicon] Add an enemy to the bestiary.")
+            .description("[+N] Add an enemy to the bestiary.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -771,14 +890,14 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("enemy")
-            .description("[Necronomicon] Get the URL for an enemy on the bestiary.")
+            .description("[+N] Get the URL for an enemy on the bestiary.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "name",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
             )
             .add_option(
                 CreateCommandOption::new(
@@ -790,18 +909,23 @@ pub fn register() -> Vec<CreateCommand> {
             ),
     );
     commands.push(
-        CreateCommand::new("setbasics")
+        CreateCommand::new("target")
             .description(
-                "[Necronomicon] Set basic information (HP, AC, movement and traits) for an enemy.",
+                "[+N] Make a creature the default target of all subsequent commands. \
+                (I.e., cache the name.)",
             )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
+                    "name",
+                    "The name of the creature to target automatically.",
                 )
                 .required(true),
-            )
+            ),
+    );
+    commands.push(
+        CreateCommand::new("setbasics")
+            .description("[+N] Set basic information (HP, AC, movement and traits) for an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -836,6 +960,14 @@ pub fn register() -> Vec<CreateCommand> {
             )
             .add_option(
                 CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
+            )
+            .add_option(
+                CreateCommandOption::new(
                     CommandOptionType::Boolean,
                     "hidden",
                     "Hide the command's response to other users (default = true).",
@@ -845,15 +977,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setattrs")
-            .description("[Necronomicon] Set the ability modifiers of an enemy.")
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Set the ability modifiers of an enemy.")
             .add_option(
                 CreateCommandOption::new(CommandOptionType::Integer, "str", "Strenth modifier.")
                     .required(true),
@@ -936,6 +1060,14 @@ pub fn register() -> Vec<CreateCommand> {
             )
             .add_option(
                 CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
+            )
+            .add_option(
+                CreateCommandOption::new(
                     CommandOptionType::Boolean,
                     "hidden",
                     "Hide the command's response to other users (default = true).",
@@ -945,15 +1077,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setskills")
-            .description("[Necronomicon] Set the skills of an enemy.")
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Set the skills of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -961,6 +1085,14 @@ pub fn register() -> Vec<CreateCommand> {
                     "Comma-separated list of the names of the skills of the enemy.",
                 )
                 .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
             )
             .add_option(
                 CreateCommandOption::new(
@@ -973,17 +1105,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setriv")
-            .description(
-                "[Necronomicon] Set the resistances, immunities and vulnerabilities of an enemy.",
-            )
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Set the resistances, immunities and vulnerabilities of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1010,6 +1132,14 @@ pub fn register() -> Vec<CreateCommand> {
             )
             .add_option(
                 CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
+            )
+            .add_option(
+                CreateCommandOption::new(
                     CommandOptionType::Boolean,
                     "hidden",
                     "Hide the command's response to other users (default = true).",
@@ -1019,15 +1149,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("setabilitytrees")
-            .description("[Necronomicon] Set the names of the ability trees of an enemy.")
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Set the names of the ability trees of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1035,6 +1157,14 @@ pub fn register() -> Vec<CreateCommand> {
                     "Comma-separated list of the names of the ability trees of the enemy.",
                 )
                 .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
             )
             .add_option(
                 CreateCommandOption::new(
@@ -1047,15 +1177,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("addability")
-            .description("[Necronomicon] Add an ability to an enemy.")
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Add an ability to an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1082,6 +1204,14 @@ pub fn register() -> Vec<CreateCommand> {
             )
             .add_option(
                 CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
+            )
+            .add_option(
+                CreateCommandOption::new(
                     CommandOptionType::Boolean,
                     "hidden",
                     "Hide the command's response to other users (default = true).",
@@ -1091,31 +1221,23 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("addnote")
-            .description("[Necronomicon] Add a note to an enemy.")
+            .description("[+N] Add a note to an enemy.")
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::String, "note", "The note to add.")
+                    .required(true),
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
-            )
-            .add_option(
-                CreateCommandOption::new(CommandOptionType::String, "note", "The note to add.")
-                    .required(true),
+                .required(false),
             ),
     );
     commands.push(
         CreateCommand::new("delnote")
-            .description("[Necronomicon] Remove a note from an enemy.")
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Remove a note from an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Integer,
@@ -1123,19 +1245,19 @@ pub fn register() -> Vec<CreateCommand> {
                     "The number of the note to remove, as specified on the enemy's page.",
                 )
                 .required(true),
-            ),
-    );
-    commands.push(
-        CreateCommand::new("setimage")
-            .description("[Necronomicon] Set an image for an enemy.")
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
-            )
+                .required(false),
+            ),
+    );
+    commands.push(
+        CreateCommand::new("setimage")
+            .description("[+N] Set an image for an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::Attachment,
@@ -1143,6 +1265,14 @@ pub fn register() -> Vec<CreateCommand> {
                     "The image to set.",
                 )
                 .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
             )
             .add_option(
                 CreateCommandOption::new(
@@ -1157,79 +1287,67 @@ pub fn register() -> Vec<CreateCommand> {
     // vague, and I found no examples).
     commands.push(
         CreateCommand::new("revealenemy")
-            .description(
-                "[Necronomicon] Reveal an enemy and make it available on the encyclopeida.",
-            )
+            .description("[+N] Reveal an enemy and make it available on the encyclopeida.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
             ),
     );
     commands.push(
         CreateCommand::new("revealbasics")
-            .description("[Necronomicon] Reveal the basic information (HP, AC, Mov) of an enemy.")
+            .description("[+N] Reveal the basic information (HP, AC, Mov) of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
             ),
     );
     commands.push(
         CreateCommand::new("revealattrs")
-            .description(
-                "[Necronomicon] Reveal the ability modifiers (attributes/stats) of an enemy.",
-            )
+            .description("[+N] Reveal the ability modifiers (attributes/stats) of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
             ),
     );
     commands.push(
         CreateCommand::new("revealskills")
-            .description("[Necronomicon] Reveal the skills of an enemy.")
+            .description("[+N] Reveal the skills of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
             ),
     );
     commands.push(
         CreateCommand::new("revealriv")
-            .description("[Necronomicon] Reveal the resistances, immunities and vulnerabilities of an enemy.")
+            .description("[+N] Reveal the resistances, immunities and vulnerabilities of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
             ),
     );
     commands.push(
         CreateCommand::new("revealability")
-            .description("[Necronomicon] Reveal an ability of an enemy.")
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
-                    "enemy",
-                    "The name of the enemy.",
-                )
-                .required(true),
-            )
+            .description("[+N] Reveal an ability of an enemy.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
@@ -1245,18 +1363,26 @@ pub fn register() -> Vec<CreateCommand> {
                     "The name of the ability to reveal.",
                 )
                 .required(true),
-            ),
-    );
-    commands.push(
-        CreateCommand::new("refresh")
-            .description("[Necronomicon] Refresh an enemy's page.")
+            )
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "enemy",
                     "The name of the enemy.",
                 )
-                .required(true),
+                .required(false),
+            ),
+    );
+    commands.push(
+        CreateCommand::new("refresh")
+            .description("[+N] Refresh an enemy's page.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
             )
             .add_option(
                 CreateCommandOption::new(
@@ -1270,7 +1396,7 @@ pub fn register() -> Vec<CreateCommand> {
     commands.push(
         CreateCommand::new("addriveffect")
             .description(
-                "[Necronomicon] Add a new effect susceptible of resistance, immunity or \
+                "[+N] Add a new effect susceptible of resistance, immunity or \
                 vulnerability to the system.",
             )
             .add_option(
@@ -1301,7 +1427,7 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("addtrait")
-            .description("[Necronomicon] Add a new trait for enemies.")
+            .description("[+N] Add a new trait for enemies.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
