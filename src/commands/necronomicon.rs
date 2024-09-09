@@ -20,6 +20,7 @@ use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::model::application::{CommandOptionType, ResolvedOption, ResolvedValue};
 use std::env;
 use std::fs;
+use std::path::Path;
 
 /* Data structures (serializable): */
 #[derive(Serialize)]
@@ -299,6 +300,19 @@ pub async fn target(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         _ => unexpected_response!(response, false),
     };
+}
+
+pub fn gettarget(_options: &[ResolvedOption]) -> Option<(String, bool)> {
+    if !Path::new(".target_name").exists() {
+        return Some((
+            "There is no active target on the system.".to_string(),
+            false,
+        ));
+    }
+
+    let target = fs::read_to_string(".target_name").expect("Could not read .target_name.");
+
+    Some((format!("The current target is **{}**.", target), false))
 }
 
 pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
@@ -923,6 +937,10 @@ pub fn register() -> Vec<CreateCommand> {
                 .required(true),
             ),
     );
+    commands
+        .push(CreateCommand::new("gettarget").description(
+            "[+N] Get the name of the current default target creature on the system.",
+        ));
     commands.push(
         CreateCommand::new("setbasics")
             .description("[+N] Set basic information (HP, AC, movement and traits) for an enemy.")

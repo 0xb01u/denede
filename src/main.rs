@@ -41,6 +41,7 @@ impl EventHandler for Bot {
                 "addenemy" => commands::necronomicon::addenemy(&command.data.options()).await,
                 "enemy" => commands::necronomicon::enemy(&command.data.options()).await,
                 "target" => commands::necronomicon::target(&command.data.options()).await,
+                "gettarget" => commands::necronomicon::gettarget(&command.data.options()),
                 "setbasics" => commands::necronomicon::setbasics(&command.data.options()).await,
                 "setattrs" => commands::necronomicon::setattrs(&command.data.options()).await,
                 "setskills" => commands::necronomicon::setskills(&command.data.options()).await,
