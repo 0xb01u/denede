@@ -280,33 +280,41 @@ pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn target(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, false);
     let enemy_name = get_cmd_opt!(options, "name", String);
 
     // Check that the enemy exists:
-    let response = request!(get, "/enemy/", enemy_name, true);
+    let response = request!(post, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
-        reqwest::StatusCode::OK => {
+        // FIXME: Hack - If the enemy exists, trying to create another enemy with the same name
+        // returns 403 Forbidden.
+        // This is the only reliable way knowing if the enemy actually exists on the server without
+        // causing any side effects, since unrevealed enemies still return 404 Not found to
+        // non-state-altering petitions.
+        reqwest::StatusCode::FORBIDDEN => {
             fs::write(".target_name", enemy_name).expect("Could not write into .target_name.");
             Some((
                 format!(
                     "Now all bot commands will target {} by default. \
                      You can still explicitly specify another creature to target on \
-                     individual commands",
+                     individual commands.",
                     enemy_name
                 ),
-                false,
+                ephemeral,
             ))
         }
-        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
-        _ => unexpected_response!(response, false),
+        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), ephemeral)),
+        _ => unexpected_response!(response, ephemeral),
     };
 }
 
-pub fn gettarget(_options: &[ResolvedOption]) -> Option<(String, bool)> {
+pub fn gettarget(options: &[ResolvedOption]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, false);
+
     if !Path::new(".target_name").exists() {
         return Some((
             "There is no active target on the system.".to_string(),
-            false,
+            ephemeral,
         ));
     }
 
@@ -935,12 +943,28 @@ pub fn register() -> Vec<CreateCommand> {
                     "The name of the creature to target automatically.",
                 )
                 .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = false).",
+                )
+                .required(false),
             ),
     );
-    commands
-        .push(CreateCommand::new("gettarget").description(
-            "[+N] Get the name of the current default target creature on the system.",
-        ));
+    commands.push(
+        CreateCommand::new("gettarget")
+            .description("[+N] Get the name of the current default target creature on the system.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = false).",
+                )
+                .required(false),
+            ),
+    );
     commands.push(
         CreateCommand::new("setbasics")
             .description("[+N] Set basic information (HP, AC, movement and traits) for an enemy.")
