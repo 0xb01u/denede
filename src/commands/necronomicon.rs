@@ -275,6 +275,10 @@ pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
             ephemeral,
         )),
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), ephemeral)),
+        reqwest::StatusCode::FORBIDDEN => Some((
+            "The specified enemy is currently unavailable.".to_string(),
+            ephemeral,
+        )),
         _ => unexpected_response!(response, ephemeral),
     };
 }
@@ -284,14 +288,9 @@ pub async fn target(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let enemy_name = get_cmd_opt!(options, "name", String);
 
     // Check that the enemy exists:
-    let response = request!(post, "/enemy/", enemy_name, ephemeral);
+    let response = request!(get, "/enemy/", enemy_name, ephemeral);
     return match response.status() {
-        // FIXME: Hack - If the enemy exists, trying to create another enemy with the same name
-        // returns 403 Forbidden.
-        // This is the only reliable way knowing if the enemy actually exists on the server without
-        // causing any side effects, since unrevealed enemies still return 404 Not found to
-        // non-state-altering petitions.
-        reqwest::StatusCode::FORBIDDEN => {
+        reqwest::StatusCode::OK | reqwest::StatusCode::FORBIDDEN => {
             fs::write(".target_name", enemy_name).expect("Could not write into .target_name.");
             Some((
                 format!(
