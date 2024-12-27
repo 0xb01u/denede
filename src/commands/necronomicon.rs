@@ -319,7 +319,7 @@ pub fn gettarget(options: &[ResolvedOption]) -> Option<(String, bool)> {
 
     let target = fs::read_to_string(".target_name").expect("Could not read .target_name.");
 
-    Some((format!("The current target is **{}**.", target), false))
+    Some((format!("The current target is **{}**.", target), ephemeral))
 }
 
 pub async fn setbasics(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
