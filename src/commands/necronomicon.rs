@@ -1151,7 +1151,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "resistances",
-                    "Comma-separated list of the resistances of the enemy.",
+                    "Comma-separated list of the resistances of the enemy.\nIf the enemy does not have resistances, specify only \"none\".",
                 )
                 .required(true),
             )
@@ -1159,7 +1159,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "immunities",
-                    "Comma-separated list of the immunities of the enemy.",
+                    "Comma-separated list of the immunities of the enemy.\nIf the enemy does not have immunities, specify only \"none\".",
                 )
                 .required(true),
             )
@@ -1167,7 +1167,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::String,
                     "vulnerabilities",
-                    "Comma-separated list of the vulnerabilities of the enemy.",
+                    "Comma-separated list of the vulnerabilities of the enemy.\nIf the enemy does not have vulnerabilities, specify only \"none\".",
                 )
                 .required(true),
             )

@@ -1,6 +1,6 @@
 [package]
 name = "denede-discord-bot"
-version = "0.2.4-n0.1.5-1"
+version = "0.2.4-n0.1.7-0"
 edition = "2021"
 authors = ["Bolu <bolu@tuta.io>"]
 
