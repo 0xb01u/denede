@@ -1,6 +1,6 @@
 /*
  *  Denedé: Discord bot for generating D&D dice rolls, written in Rust.
- *  Copyright (C) 2023-2024  Bolu <bolu@tuta.io>
+ *  Copyright (C) 2023-2025  Bolu <bolu@tuta.io>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published

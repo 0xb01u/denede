@@ -1,6 +1,6 @@
 /*
  *  Denedé: Discord bot for generating D&D dice rolls, written in Rust.
- *  Copyright (C) 2023-2024  Bolu <bolu@tuta.io>
+ *  Copyright (C) 2023-2025  Bolu <bolu@tuta.io>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published
@@ -232,6 +232,16 @@ fn sanitize_name<Stringlike: AsRef<str>>(name: Stringlike) -> String {
 
 const NOT_FOUND_MSG: &str = "Could not find the specified enemy on the system. \
 (Or something very wrong happened to the server.)";
+
+pub async fn url(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+
+    Some((
+        env::var("SERVER_EXTERNAL_URL")
+            .expect("SERVER_EXTERNAL_URL environmental variable not set."),
+        ephemeral,
+    ))
+}
 
 pub async fn addenemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
@@ -888,7 +898,19 @@ pub async fn addtrait(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
 }
 
 pub fn register() -> Vec<CreateCommand> {
-    let mut commands = Vec::<CreateCommand>::with_capacity(18);
+    let mut commands = Vec::<CreateCommand>::with_capacity(23);
+    commands.push(
+        CreateCommand::new("url")
+            .description("[+N] Get the URL for the encyclopedia.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
     commands.push(
         CreateCommand::new("addenemy")
             .description("[+N] Add an enemy to the bestiary.")

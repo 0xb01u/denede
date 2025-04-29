@@ -1,6 +1,6 @@
 /*
  *  Denedé: Discord bot for generating D&D dice rolls, written in Rust.
- *  Copyright (C) 2023-2024  Bolu <bolu@tuta.io>
+ *  Copyright (C) 2023-2025  Bolu <bolu@tuta.io>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published
@@ -38,6 +38,7 @@ impl EventHandler for Bot {
                 "code" => commands::code::run(&command.data.options()),
 
                 /* Necronomicon integration commands: */
+                "url" => commands::necronomicon::url(&command.data.options()).await,
                 "addenemy" => commands::necronomicon::addenemy(&command.data.options()).await,
                 "enemy" => commands::necronomicon::enemy(&command.data.options()).await,
                 "target" => commands::necronomicon::target(&command.data.options()).await,
