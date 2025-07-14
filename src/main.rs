@@ -1,6 +1,6 @@
 /*
  *  Denedé: Discord bot for generating D&D dice rolls, written in Rust.
- *  Copyright (C) 2023-2024  Bolu <bolu@tuta.io>
+ *  Copyright (C) 2023-2025  Bolu <bolu@tuta.io>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published
@@ -18,12 +18,15 @@
 mod commands;
 
 use regex::Regex;
+use serenity::{
+    builder::{CreateInteractionResponse, CreateInteractionResponseMessage},
+    model::{
+        application::{Command, Interaction},
+        prelude::*,
+    },
+    prelude::*,
+};
 use std::env;
-extern crate reqwest;
-use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
-use serenity::model::application::{Command, Interaction};
-use serenity::model::prelude::*;
-use serenity::prelude::*;
 
 struct Bot;
 
@@ -145,10 +148,10 @@ impl EventHandler for Bot {
                     // Fallback in case random.org does not work for some reason (has happened):
                     use rand::prelude::*;
 
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
 
                     for _ in 0..rolls {
-                        sequence.push_str(&format!("{}, ", rng.gen_range(1..size + 1)));
+                        sequence.push_str(&format!("{}, ", rng.random_range(1..size + 1)));
                     }
                     is_truly_random = false;
                 }
