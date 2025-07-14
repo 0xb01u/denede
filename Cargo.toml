@@ -1,23 +1,24 @@
 [package]
 name = "denede-discord-bot"
-version = "0.2.4-n0.1.7-1"
+version = "0.2.5-n0.1.8-0"
 edition = "2021"
 authors = ["Bolu <bolu@tuta.io>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.release]
+lto = "thin"
+
 [dependencies]
-chrono = "0.4.31"
-regex = "1.10.0"
-reqwest = { version = "0.12.7", features = ["json"] }
-serenity = { default-features = false, version = "0.12.0", features = [
+regex = { version = "1.11.1", default-features = false }
+reqwest = { version = "0.12.22", default-features = false, features = ["json"] }
+serenity = { version = "0.12.4", default-features = false, features = [
     "client",
     "gateway",
     "rustls_backend",
     "model",
     "builder"
 ] }
-rand = "0.8.5"
-tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+rand = "0.9.1"
+tokio = { version = "1.46.1", default-features = false, features = ["macros", "rt-multi-thread"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
