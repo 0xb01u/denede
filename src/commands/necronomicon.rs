@@ -225,7 +225,10 @@ macro_rules! unexpected_response {
 
 /* Utility functions: */
 fn sanitize_name<Stringlike: AsRef<str>>(name: Stringlike) -> String {
-    name.as_ref().to_lowercase().replace(" ", "_")
+    name.as_ref()
+        .to_lowercase()
+        .replace(" ", "_")
+        .replace(",", "")
 }
 
 /* Command functions: */
