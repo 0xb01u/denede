@@ -56,7 +56,7 @@ struct EnemyRIVForm {
 }
 
 #[derive(Serialize)]
-struct EnemyAbilityForm {
+struct EnemyAddAbilityForm {
     tree: String,
     name: String,
     description: String,
@@ -548,7 +548,7 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
 
     let ability_name = get_cmd_opt!(options, "ability_name", String).to_string();
 
-    let ability = EnemyAbilityForm {
+    let ability = EnemyAddAbilityForm {
         name: ability_name.clone(),
         tree: get_cmd_opt!(options, "ability_tree", String).to_string(),
         description: get_cmd_opt!(options, "description", String, "").to_string(),
@@ -793,16 +793,10 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
 
     let ability_name = get_cmd_opt!(options, "ability_name", String).to_string();
 
-    let ability = EnemyAbilityForm {
-        tree: get_cmd_opt!(options, "tree_name", String).to_string(),
-        name: ability_name.clone(),
-        description: "".to_string(),
-    };
-
     let response = request!(
         post,
         format!("/enemy/{}/reveal/ability", sanitize_name(enemy_name)),
-        ability
+        ability_name
     );
     return match response.status() {
         reqwest::StatusCode::OK => Some((
@@ -843,7 +837,7 @@ pub async fn refresh(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         format!("/enemy/{}/refresh", sanitize_name(enemy_name))
     );
     return match response.status() {
-        reqwest::StatusCode::OK => Some((format!("Refreshed {}'s page.", enemy_name,), ephemeral)),
+        reqwest::StatusCode::OK => Some((format!("Updated {}'s page.", enemy_name), ephemeral)),
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         _ => unexpected_response!(response, false),
     };
@@ -1417,14 +1411,6 @@ pub fn register() -> Vec<CreateCommand> {
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,
-                    "tree_name",
-                    "The name of the ability tree to which the ability to reveal belongs.",
-                )
-                .required(true),
-            )
-            .add_option(
-                CreateCommandOption::new(
-                    CommandOptionType::String,
                     "ability_name",
                     "The name of the ability to reveal.",
                 )
@@ -1441,7 +1427,27 @@ pub fn register() -> Vec<CreateCommand> {
     );
     commands.push(
         CreateCommand::new("refresh")
-            .description("[+N] Refresh an enemy's page.")
+            .description("[+N] Update (refresh) an enemy's page.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
+    commands.push(
+        CreateCommand::new("update_page")
+            .description("[+N] Update an enemy's page. Alias for /refresh.")
             .add_option(
                 CreateCommandOption::new(
                     CommandOptionType::String,

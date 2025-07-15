@@ -70,6 +70,8 @@ impl EventHandler for Bot {
                     commands::necronomicon::revealability(&command.data.options()).await
                 }
                 "refresh" => commands::necronomicon::refresh(&command.data.options()).await,
+                // Alias for refresh:
+                "update_page" => commands::necronomicon::refresh(&command.data.options()).await,
                 "addriveffect" => {
                     commands::necronomicon::addriveffect(&command.data.options()).await
                 }
