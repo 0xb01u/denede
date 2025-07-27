@@ -101,77 +101,109 @@ impl EventHandler for Bot {
         let mut content = msg.content;
         let mut response = Vec::new();
 
+        // Roll message without minimum value (no "r"):
+        let dice_no_min = Regex::new(r"(\[[^r+-]+?)([+-][^r]+?)?\]").expect("No no-min rolls?");
+        content = dice_no_min.replace_all(&content, "${1}r1$2]").into_owned();
+        let dice_avg_min = Regex::new(r"(\[[^r]+?r)([^\d].+?\])").expect("No avg-min rolls?");
+        // Hack for average min rolls: set the minimum to 0, and handle later:
+        content = dice_avg_min.replace_all(&content, "${1}0$2").into_owned();
+
         // Shortcut roll message, e.g.: [d] [3d] [d40]
         let dice_shortcut =
-            Regex::new(r"\[d(?<bonus> ?[+-] ?-?\d+)?\]").expect("No shortcut regex?");
+            Regex::new(r"\[dr(?<min>\d+)?(?<bonus> ?[+-] ?-?\d+)?\]").expect("No shortcut regex?");
         content = dice_shortcut
-            .replace_all(&content, "[1d20$bonus]")
+            .replace_all(&content, "[1d20r$min$bonus]")
             .into_owned();
-        let dice_shortcut_amount = Regex::new(r"\[(?<amount>\d+)d(?<bonus> ?[+-] ?-?\d+)?\]")
-            .expect("No amount shortcut regex?");
+        let dice_shortcut_amount =
+            Regex::new(r"\[(?<amount>\d+)dr(?<min>\d+)(?<bonus> ?[+-] ?-?\d+)?\]")
+                .expect("No amount shortcut regex?");
         content = dice_shortcut_amount
-            .replace_all(&content, "[${amount}d20$bonus]")
+            .replace_all(&content, "[${amount}d20r$min$bonus]")
             .into_owned();
-        let dice_shortcut_size = Regex::new(r"\[d(?<size>\d+)(?<bonus> ?[+-] ?-?\d+)?\]")
-            .expect("No size shortcut regex?");
+        let dice_shortcut_size =
+            Regex::new(r"\[d(?<size>\d+)r(?<min>\d+)(?<bonus> ?[+-] ?-?\d+)?\]")
+                .expect("No size shortcut regex?");
         content = dice_shortcut_size
-            .replace_all(&content, "[1d$size$bonus]")
+            .replace_all(&content, "[1d${size}r$min$bonus]")
             .into_owned();
 
         // Regular roll message, e.g.: [2d20]
-        let dice = Regex::new(r"(?<roll>\[\d+d\d+)\]").expect("No un-bonused regex?");
+        let dice = Regex::new(r"(?<roll>\[\d+d\d+r\d+)\]").expect("No un-bonused regex?");
         content = dice.replace_all(&content, "$roll+0]").into_owned();
 
         // Negative bonus roll message, e.g.: [2d20-5]
-        let dice_and_neg_bonus = Regex::new(r"(?<roll>\[\d+d\d+) ?- ?(?<bonus>\d+\])")
+        let dice_and_neg_bonus = Regex::new(r"(?<roll>\[\d+d\d+r\d+) ?- ?(?<bonus>\d+\])")
             .expect("No negative-bonused regex?");
         content = dice_and_neg_bonus
             .replace_all(&content, "$roll+-$bonus")
             .into_owned();
 
         // Bonus roll message, e.g.: [2d20+5]
-        let dice_and_bonus = Regex::new(r"\[(\d+)d(\d+) ?\+ ?(-?\d+)\]").expect("No regex?");
-        for (_, [rolls_str, size_str, bonus_str]) in
+        let dice_and_bonus = Regex::new(r"\[(\d+)d(\d+)r(\d+) ?\+ ?(-?\d+)\]").expect("No regex?");
+        for (_, [rolls_str, size_str, min_str, bonus_str]) in
             dice_and_bonus.captures_iter(&content).map(|c| c.extract())
         {
             // Avoid an i64-parse error:
             // (2**63 is 19 characters long.)
             if rolls_str.chars().count() > 18
                 || size_str.chars().count() > 18
+                || min_str.chars().count() > 18
                 || bonus_str.chars().count() > 18
             {
-                let _ = msg.channel_id.say(&ctx.http, "That numeral is overlarge for mine ancient, fatigued orbs to even peruse. I am apprehensive thou shalt require another's aid. Should thou seek assistance with lesser matters, I am at thy service!").await;
+                let _ = msg.channel_id.say(&ctx.http,
+                    "That numeral is overlarge for mine ancient, fatigued orbs to even peruse. \
+                    I am apprehensive thou shalt require another's aid. \
+                    Should thou seek assistance with lesser matters, I am at thy service!").await;
                 continue;
             }
 
             let rolls = rolls_str.parse::<i64>().expect("No rolls?");
             let size = size_str.parse::<i64>().expect("No size?");
+            let min = min_str.parse::<i64>().expect("No minimum?");
+            let min = if min == 0 { (size + 1) / 2 } else { min }; // Handle average mins.
             let bonus = bonus_str.parse::<i64>().expect("No bonus?");
 
             if size > 1 && rolls > 0 {
-                // Arbitrary limits check, so only reasonable amounts of numbers of reasonable size are returned:
+                // Arbitrary limits checks, so only reasonable amounts of
+                // numbers of reasonable size are returned:
                 if rolls > 20i64 {
                     response.push(
-                        "Inquired for overmuch rolls. I may only proffer up to twain score!"
+                        "Inquired for overmuch rolls. \
+                        I may only proffer up to twain score!"
                             .to_owned(),
                     );
                     continue;
                 }
                 if size > 1_000i64 {
                     response.push(
-                        "Entreaded for an excessive sum. I can only reckon unto a thousand!"
+                        "Entreaded for an excessive sum. \
+                        I can only reckon unto a thousand!"
                             .to_owned(),
                     );
                     continue;
                 }
                 if bonus > rolls * size * 10 {
                     response.push(
-                        "Besought an excessive boon. Be not so covetous, traveller!".to_owned(),
+                        "Besought an excessive boon. \
+                        Be not so covetous, traveller!"
+                            .to_owned(),
+                    );
+                    continue;
+                }
+                if min > size {
+                    response.push(
+                        "Demanded a minimum sum exceeding the maximum. \
+                        I counsel thee to enhance thy counting skills!"
+                            .to_owned(),
                     );
                     continue;
                 }
 
-                let url = format!("https://www.random.org/integers/?num={}&min=1&max={}&col=1&base=10&format=plain&rnd=new", rolls, size);
+                let url = format!(
+                    "https://www.random.org/integers/?\
+                    num={}&min={}&max={}&col=1&base=10&format=plain&rnd=new",
+                    rolls, min, size
+                );
                 let res = reqwest::get(url).await.expect("No random?");
                 let body = res.text().await.expect("No numbers?");
 
@@ -188,7 +220,7 @@ impl EventHandler for Bot {
                     let mut rng = rand::rng();
 
                     for _ in 0..rolls {
-                        sequence.push_str(&format!("{}, ", rng.random_range(1..size + 1)));
+                        sequence.push_str(&format!("{}, ", rng.random_range(min..=size)));
                     }
                     is_truly_random = false;
                 }
@@ -222,7 +254,12 @@ impl EventHandler for Bot {
                         "Deem me not a fool, traveller. Be earnest and cease thy jesting with me!"
                     ));
                 } else {
-                    response.push(format!("I deem thy sagacity to be not especially lofty, thus I shall provide a rejoinder to thy entreaty, as a gesture of courtesy: {}", rolls * size + bonus));
+                    response.push(format!(
+                        "I deem thy sagacity to be not especially lofty, \
+                            thus I shall provide a rejoinder to thy entreaty, \
+                            as a gesture of courtesy: {}",
+                        rolls * size + bonus
+                    ));
                 }
             }
         }
