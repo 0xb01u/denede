@@ -5,8 +5,15 @@ Denedé supports [MapTool](https://github.com/RPTools/maptool)'s notation for di
  * [NdM] will generate a roll of N M-sided dice. E.g.: [1d20].
  * [NdM+B] will generate a roll of N M-sided dice, and add B as a bonus. E.g.: [1d20+2]. B can be a negative number.
  * [NdM-B] will generate a roll of N M-sided dice, and subtract B as a penalty. E.g.: [1d20-2]. B cannot be a negative number, only positive (no sign specified).
+ * Reroll notation is also supported, by adding "r\<R\>" after the roll size, rerolling all results lower than R. E.g.: [1d20r2].
+ * There are a also bunch of shortcuts available for rolls. In a roll like [NdMrR], where N, M and R are numbers,
+   - If N is omitted, it defaults to 1. E.g.: [d20] is equivalent to [1d20].
+   - If M is omitted, it defaults to 20. E.g.: [1d] is equivalent to [1d20].
+   - If R is omitted and "r" is not present, it defaults to 1. E.g.: [1d20] is equivalent to [1d20r1].
+   - If R is omitted and "r" is present, it defaults to M / 2, rounding up. E.g.: [1d20r] is equivalent to [1d20r10].
+   - Multiple of these can be used at the same time. E.g.: [d] is actually equivalent to [1d20r1].
 
-On a technical level, it supports dice rolls that follow one of the following regular expressions:
+On a technical level, it supports dice rolls that follow one of the following regular expressions for fully-specified rolls without rerolls:
  * `\[\d+d\d+\]` for rolls without an added bonus.
  * `\[\d+d\d+ ?\+ ?-?\d+\]` for rolls with an added bonus (positive or negative).
  * `\[\d+d\d+ ?- ?\d+\]` for rolls with an added negative bonus, a.k.a. penalty.
