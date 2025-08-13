@@ -66,7 +66,7 @@ impl EventHandler for Bot {
             return;
         }
 
-        let dice_expr_regex = Regex::new(r"\[.+?\]").unwrap();
+        let dice_expr_regex = Regex::new(r"\[[^\[]+?\]").unwrap();
         let results = join_all(
             dice_expr_regex
                 .find_iter(&msg.content)
