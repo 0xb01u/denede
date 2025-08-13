@@ -878,9 +878,9 @@ impl CompoundDiceRoll {
     /// A `Result` containing a `CompoundDiceRoll` instance if the text represents a valid dice roll,
     /// or an `Error` if it does not.
     pub fn parse(text: &str) -> Result<CompoundDiceRoll> {
-        // Remove all whitespace from the text.
+        // Remove all whitespace from the text and set all charactes to lowercase:
         let whitespace_regex = Regex::new(r"\s+").unwrap();
-        let text = whitespace_regex.replace_all(text, "");
+        let text = whitespace_regex.replace_all(text, "").to_lowercase();
 
         // Extract and parse every dice:
         let arithmetic_ops = Regex::new(r"(?P<op>[\+\-\*\/])").unwrap();
