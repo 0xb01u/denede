@@ -395,17 +395,21 @@ impl Dice {
                     .map_err(|_| DiceError::new(DiceErrorKind::DiceStringNumberTooLarge))
             })
             .collect::<Result<Vec<_>>>()?;
-        assert!(
-            !numbers.is_empty() && numbers.len() <= 3,
-            "Too many die numbers specified"
-        );
+        if numbers.is_empty() {
+            assert!(
+                !starts_by_number && specifies_sides,
+                "Found die different than [d] without any numbers"
+            );
+            numbers.push(20); // Default sides if not specified.
+        }
+        assert!(numbers.len() <= 3, "Too many die numbers specified");
         // Remove amount (already processed):
         if starts_by_number {
             numbers.remove(0);
         }
 
         // Dice sides:
-        let sides = if specifies_sides {
+        let sides = if specifies_sides && !numbers.is_empty() {
             numbers.remove(0)
         } else {
             20

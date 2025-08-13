@@ -33,7 +33,7 @@ pub async fn run(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
         ephemeral = true;
     };
 
-    let dice_expression;
+    let mut dice_expression;
     if let Some(ResolvedOption {
         name: "expression",
         value: ResolvedValue::String(expr),
@@ -44,6 +44,11 @@ pub async fn run(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     } else {
         unreachable!("Invoked /roll with no dice expression.");
     };
+
+    // Remove leading and trailing brackets, if present:
+    if dice_expression.starts_with('[') && dice_expression.ends_with(']') {
+        dice_expression = &dice_expression[1..dice_expression.len() - 1];
+    }
 
     // Process dice expression as it is done in regular messages:
     let dice_roll = match CompoundDiceRoll::parse(&dice_expression) {
