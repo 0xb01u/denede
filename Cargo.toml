@@ -1,6 +1,6 @@
 [package]
 name = "denede"
-version = "0.3.0-n0.2.0-0"
+version = "1.0.0-n0.2.0-0"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,6 +9,7 @@ edition = "2024"
 lto = "thin"
 
 [dependencies]
+futures = "0.3.31"
 rand = "0.9.1"
 regex = "1.11.1"
 reqwest = { version = "0.12.22", features = ["json"] }
