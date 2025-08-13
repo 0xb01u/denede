@@ -19,7 +19,7 @@ use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::model::application::{CommandOptionType, ResolvedOption, ResolvedValue};
 
 pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
-    let ephemeral: bool;
+    let ephemeral;
     if let Some(ResolvedOption {
         value: ResolvedValue::Boolean(is_ephemeral),
         ..

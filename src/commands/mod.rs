@@ -18,3 +18,4 @@
 pub mod code;
 pub mod license;
 pub mod ping;
+pub mod roll;

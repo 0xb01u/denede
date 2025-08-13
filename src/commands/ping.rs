@@ -29,7 +29,7 @@ pub async fn run(
     interaction: &Interaction,
 ) -> Option<(String, bool)> {
     if let Interaction::Command(command) = interaction {
-        let ephemeral: bool;
+        let ephemeral;
         if let Some(ResolvedOption {
             value: ResolvedValue::Boolean(is_ephemeral),
             ..
