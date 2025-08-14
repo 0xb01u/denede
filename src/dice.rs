@@ -1022,8 +1022,9 @@ impl CompoundDiceRoll {
         let mut ops = self.ops.clone();
         let has_divide = ops.contains(&DiceArithmeticOp::Divide); // For later.
         if ops.len() < totals.len() {
-            ops.insert(0, DiceArithmeticOp::Add); // Add a dummy op to simplify fold.
-            ops.push(DiceArithmeticOp::Add);
+            // No first op specified.
+            // Fold init value is zero, the first result will be added to that:
+            ops.insert(0, DiceArithmeticOp::Add);
         }
 
         // Zip the results and operations together, for folding later:
