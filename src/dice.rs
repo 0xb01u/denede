@@ -877,7 +877,7 @@ impl std::fmt::Display for CompoundDiceResult {
         if self.partial_results.len() > 1 {
             write!(
                 f,
-                "{} = {}",
+                "{}; = {}",
                 self.partial_results
                     .iter()
                     .map(|res| res.to_string())
@@ -921,19 +921,19 @@ impl CompoundDiceRoll {
 
         // Collapse redundant unary arithmetic operations:
         let redundant_pluses_regex = Regex::new(r"\+\++").unwrap();
+        let redundant_minuses_regex = Regex::new(r"(\-\-)+").unwrap();
         let negative_change_regex = Regex::new(r"\-\+").unwrap();
+        let positive_change_regex = Regex::new(r"\+\-").unwrap();
         loop {
             let new_text = redundant_pluses_regex.replace_all(&text, "+");
+            let new_text = redundant_minuses_regex.replace_all(&new_text, "+");
             let new_text = negative_change_regex.replace_all(&new_text, "-");
+            let new_text = positive_change_regex.replace_all(&new_text, "-");
             if new_text == text {
                 break;
             }
             text = new_text.to_string();
         }
-
-        // Remove trailing arithmetic operations:
-        let trailing_ops_regex = Regex::new(r"[\+\-\*\/]+$").unwrap();
-        text = trailing_ops_regex.replace_all(&text, "").to_string();
 
         // Handle trailing (end) unary arithmetic operations:
         if text.ends_with('+') {
@@ -957,6 +957,13 @@ impl CompoundDiceRoll {
             if !text.starts_with('-') && !text.starts_with('+') {
                 text = format!("-{}", text);
             }
+        }
+
+        // Handle other trailing arithmetic operations:
+        if text.ends_with('*') || text.ends_with('/') {
+            return Err(DiceError::new(
+                DiceErrorKind::CompoundDiceExprInvalidOpStructure,
+            ));
         }
 
         // Extract and parse every dice:
@@ -1014,7 +1021,10 @@ impl CompoundDiceRoll {
         // Extract the arithmetic operations list:
         let mut ops = self.ops.clone();
         let has_divide = ops.contains(&DiceArithmeticOp::Divide); // For later.
-        ops.insert(0, DiceArithmeticOp::Add); // Add a dummy op to simplify fold.
+        if ops.len() < totals.len() {
+            ops.insert(0, DiceArithmeticOp::Add); // Add a dummy op to simplify fold.
+            ops.push(DiceArithmeticOp::Add);
+        }
 
         // Zip the results and operations together, for folding later:
         let result_op_pairs = totals.into_iter().zip(ops.into_iter()).collect::<Vec<_>>();
