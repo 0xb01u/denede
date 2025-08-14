@@ -877,7 +877,7 @@ impl std::fmt::Display for CompoundDiceResult {
         if self.partial_results.len() > 1 {
             write!(
                 f,
-                "{} = {}",
+                "{}; = {}",
                 self.partial_results
                     .iter()
                     .map(|res| res.to_string())
