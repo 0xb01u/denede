@@ -28,10 +28,12 @@ pub enum DiceErrorKind {
     RandomOrgInvalidResponse,
     DiceStringInvalidCharacters,
     DiceStringTooManyParts,
-    DiceStringInvalidOperation,
+    DiceStringInvalidOp,
     DiceStringNumberTooLarge,
     DiceExprDivisionByZero,
     DiceExprInvalidArgument,
+    DiceExprInvalidSides,
+    CompoundDiceExprInvalidOpStructure,
 }
 
 /// Structure encapsulating an error that can occur in this module.
@@ -92,10 +94,6 @@ async fn process_randomorg_request(endpoint: String) -> Result<Vec<u16>> {
 /// A tuple containing a vector of random integers and a boolean indicating whether the
 /// numbers were truly random (i.e., fetched from RANDOM.ORG).
 async fn call_randomorg(num: u16, max: u16, min: u16) -> (Vec<u16>, bool) {
-    if num == 0 {
-        return (vec![], false);
-    }
-
     let endpoint = format!(
         "https://www.random.org/integers/?\
         num={}&min={}&max={}&col=1&base=10&format=plain&rnd=new",
@@ -361,14 +359,14 @@ impl Dice {
             .collect::<Vec<_>>();
         for id in ids.iter() {
             if !valid_ids.contains(id) {
-                return Err(DiceError::new(DiceErrorKind::DiceStringInvalidOperation));
+                return Err(DiceError::new(DiceErrorKind::DiceStringInvalidOp));
             }
         }
 
         // Check the remaining parts correctly conform a valid op, and extract the op:
         let kind = DICE_IDS_MAP
             .get(&DieOpId(&ids))
-            .ok_or_else(|| DiceError::new(DiceErrorKind::DiceStringInvalidOperation))?
+            .ok_or_else(|| DiceError::new(DiceErrorKind::DiceStringInvalidOp))?
             .clone();
 
         // Extract numbers:
@@ -450,13 +448,54 @@ impl Dice {
         })
     }
 
+    /// Regular dice roll and reroll operations.
+    async fn regular(&self) -> Result<DiceResult> {
+        let threshold = if self.kind == DieKind::Reroll {
+            self.args[0]
+        } else {
+            1
+        };
+
+        if self.sides == 1 {
+            if threshold > 1 {
+                return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            }
+            return Ok((vec![self.amount as i32], true).into());
+        }
+
+        let (seq, truly_random) = call_randomorg(self.amount, self.sides, threshold).await;
+
+        return Ok((seq, truly_random).into());
+    }
+
+    /// Success operation.
+    async fn success(&self) -> Result<DiceResult> {
+        let threshold = self.args[0];
+        if threshold > self.sides {
+            return Ok((vec![0], true).into());
+        }
+
+        if self.sides == 1 {
+            return Ok((vec![self.amount as i32], true).into());
+        }
+
+        let res = call_randomorg(self.amount, self.sides, 1).await;
+
+        return Ok((res.0, res.1, threshold).into());
+    }
+
     /// Dice drop and drop high operations.
     async fn drop(&self) -> Result<DiceResult> {
-        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
         let drop_count = self.args[0] as usize;
         if drop_count > self.amount as usize {
             return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
         }
+
+        if self.sides == 1 {
+            return Ok((vec![self.amount as i32 - drop_count as i32], true).into());
+        }
+
+        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
         let mut sorted_seq = seq.clone();
         sorted_seq.sort_unstable();
@@ -490,15 +529,16 @@ impl Dice {
 
     /// Dice keep and keep low operations.
     async fn keep(&self) -> Result<DiceResult> {
-        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
         let keep_count = self.args[0] as usize;
         if keep_count > self.amount as usize {
             return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
         }
 
-        if seq.is_empty() {
-            return Ok(DiceResult::zero());
+        if self.sides == 1 {
+            return Ok((vec![keep_count as i32], true).into());
         }
+
+        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
         let mut sorted_seq = seq.clone();
         sorted_seq.sort_unstable();
@@ -531,16 +571,16 @@ impl Dice {
 
     /// Dice reroll once and keep, and reroll once and choose operations.
     async fn reroll_once(&self) -> Result<DiceResult> {
-        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
-
-        if seq.is_empty() {
-            return Ok(DiceResult::zero());
-        }
-
         let threshold = self.args[0];
         if threshold > self.sides {
             return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
         }
+
+        if self.sides == 1 {
+            return Ok((vec![self.amount as i32], true).into());
+        }
+
+        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
         let reroll_count = seq
             .iter()
@@ -572,11 +612,18 @@ impl Dice {
 
     /// Dice explode and exploding success operations.
     async fn explode(&self) -> Result<DiceResult> {
-        let (mut seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
-
-        if seq.is_empty() {
-            return Ok(DiceResult::zero());
+        if self.kind == DieKind::ExplodingSuccess {
+            let threshold = self.args[1];
+            if threshold > self.sides {
+                return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            }
         }
+
+        if self.sides == 1 {
+            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidSides));
+        }
+
+        let (mut seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
         let mut last_rolls = seq.clone();
         let limit = self.args[0];
@@ -598,9 +645,6 @@ impl Dice {
 
         if self.kind == DieKind::ExplodingSuccess {
             let threshold = self.args[1];
-            if threshold > self.sides {
-                return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
-            }
             return Ok((seq, truly_random, threshold).into());
         } else {
             return Ok((seq, truly_random).into());
@@ -609,11 +653,11 @@ impl Dice {
 
     /// Dice open operation.
     async fn open(&self) -> Result<DiceResult> {
-        let (mut seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
-
-        if seq.is_empty() {
-            return Ok(DiceResult::zero());
+        if self.sides == 1 {
+            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidSides));
         }
+
+        let (mut seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
         let limit = self.args[0];
         for value in seq.iter_mut() {
@@ -650,12 +694,12 @@ impl Dice {
         }
 
         let subkind = match self.kind {
-            DieKind::UpperBound => BoundKind::Upper,
-            DieKind::LowerBound => BoundKind::Lower,
-            DieKind::AddUpperBound => BoundKind::Upper,
-            DieKind::AddLowerBound => BoundKind::Lower,
-            DieKind::SubtractUpperBound => BoundKind::Upper,
-            DieKind::SubtractLowerBound => BoundKind::Lower,
+            DieKind::UpperBound | DieKind::AddUpperBound | DieKind::SubtractUpperBound => {
+                BoundKind::Upper
+            }
+            DieKind::LowerBound | DieKind::AddLowerBound | DieKind::SubtractLowerBound => {
+                BoundKind::Lower
+            }
             _ => unreachable!(),
         };
         let op = match self.kind {
@@ -665,7 +709,6 @@ impl Dice {
             _ => unreachable!(),
         };
 
-        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
         let bound = (match op {
             BoundOp::None => self.args[0],
             BoundOp::Add | BoundOp::Subtract => self.args[1],
@@ -676,10 +719,16 @@ impl Dice {
             BoundOp::Subtract => -(self.args[0] as i32),
         };
 
-        if seq.is_empty() {
-            return Ok(DiceResult::zero());
+        if self.sides == 1 {
+            if subkind == BoundKind::Upper {
+                return Ok((vec![self.amount as i32 * bound.min(modifier + 1)], true).into());
+            } else {
+                return Ok((vec![self.amount as i32 * bound.max(modifier + 1)], true).into());
+            }
         }
-        //
+
+        let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
+
         // Cast seq to i32 to comply with the structures types:
         let mut seq = seq.into_iter().map(|x| x as i32).collect::<Vec<_>>();
 
@@ -696,10 +745,8 @@ impl Dice {
 
     /// Dice open-ended operations (both variants).
     async fn open_ended(&self) -> Result<DiceResult> {
-        let (seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
-
-        if seq.is_empty() {
-            return Ok(DiceResult::zero());
+        if self.sides == 1 {
+            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidSides));
         }
 
         let low = self.args[0];
@@ -711,6 +758,8 @@ impl Dice {
         if high <= low || high > self.sides {
             return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
         }
+
+        let (seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
         let mut result_seq = vec![0; seq.len()];
         for (i, &value) in seq.iter().enumerate() {
@@ -752,25 +801,13 @@ impl Dice {
     /// # Returns
     /// A `DiceResult` with the result of rolling these dice.
     pub async fn roll(&self) -> Result<DiceResult> {
-        if self.sides == 1 {
-            return Ok((vec![self.amount as i32], true).into());
+        if self.amount == 0 {
+            return Ok(DiceResult::zero());
         }
 
         match self.kind {
-            DieKind::Regular => {
-                return Ok(call_randomorg(self.amount, self.sides, 1).await.into());
-            }
-            DieKind::Reroll => {
-                let threshold = self.args[0];
-                return Ok(call_randomorg(self.amount, self.sides, threshold)
-                    .await
-                    .into());
-            }
-            DieKind::Success => {
-                let res = call_randomorg(self.amount, self.sides, 1).await;
-                let threshold = self.args[0];
-                return Ok((res.0, res.1, threshold).into());
-            }
+            DieKind::Regular | DieKind::Reroll => self.regular().await,
+            DieKind::Success => self.success().await,
             DieKind::Drop | DieKind::DropHigh => self.drop().await,
             DieKind::Keep | DieKind::KeepLow => self.keep().await,
             DieKind::RerollOnceAndKeep | DieKind::RerollOnceAndChoose => self.reroll_once().await,
@@ -880,11 +917,64 @@ impl CompoundDiceRoll {
     pub fn parse(text: &str) -> Result<CompoundDiceRoll> {
         // Remove all whitespace from the text and set all charactes to lowercase:
         let whitespace_regex = Regex::new(r"\s+").unwrap();
-        let text = whitespace_regex.replace_all(text, "").to_lowercase();
+        let mut text = whitespace_regex.replace_all(text, "").to_lowercase();
+
+        // Collapse redundant unary arithmetic operations:
+        let redundant_pluses_regex = Regex::new(r"\+\++").unwrap();
+        let negative_change_regex = Regex::new(r"\-\+").unwrap();
+        loop {
+            let new_text = redundant_pluses_regex.replace_all(&text, "+");
+            let new_text = negative_change_regex.replace_all(&new_text, "-");
+            if new_text == text {
+                break;
+            }
+            text = new_text.to_string();
+        }
+
+        // Remove trailing arithmetic operations:
+        let trailing_ops_regex = Regex::new(r"[\+\-\*\/]+$").unwrap();
+        text = trailing_ops_regex.replace_all(&text, "").to_string();
+
+        // Handle trailing (end) unary arithmetic operations:
+        if text.ends_with('+') {
+            // Remove empty split from Dice Expressions:
+            text.pop();
+        } else if text.ends_with('-') {
+            // Remove empty split from Dice Expressions, and negate the final result:
+            text.pop();
+            text = text
+                .chars()
+                .map(|c| {
+                    if c == '+' {
+                        '-'
+                    } else if c == '-' {
+                        '+'
+                    } else {
+                        c
+                    }
+                })
+                .collect();
+            if !text.starts_with('-') && !text.starts_with('+') {
+                text = format!("-{}", text);
+            }
+        }
 
         // Extract and parse every dice:
         let arithmetic_ops = Regex::new(r"(?P<op>[\+\-\*\/])").unwrap();
-        let dice_exprs = arithmetic_ops.split(&text);
+        let mut dice_exprs = arithmetic_ops.split(&text);
+
+        if text.starts_with('+') || text.starts_with('-') {
+            // Remove empty split from Dice Expressions:
+            dice_exprs.next();
+        }
+
+        // Error if empty Dice Expressions are found (which means two incompatible arithmetic ops
+        // were specified next to each other):
+        if dice_exprs.any(|expr| expr.is_empty()) {
+            return Err(DiceError::new(
+                DiceErrorKind::CompoundDiceExprInvalidOpStructure,
+            ));
+        }
 
         let dice = dice_exprs
             .map(|expr| Dice::parse(expr))
