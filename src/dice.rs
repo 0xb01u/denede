@@ -801,7 +801,7 @@ impl Dice {
     /// # Returns
     /// A `DiceResult` with the result of rolling these dice.
     pub async fn roll(&self) -> Result<DiceResult> {
-        if self.amount == 0 {
+        if self.amount == 0 || self.sides == 0 {
             return Ok(DiceResult::zero());
         }
 
