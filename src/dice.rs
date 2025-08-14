@@ -400,7 +400,7 @@ impl Dice {
             );
             numbers.push(20); // Default sides if not specified.
         }
-        assert!(numbers.len() <= 3, "Too many die numbers specified");
+        assert!(numbers.len() <= 4, "Too many die numbers specified");
         // Remove amount (already processed):
         if starts_by_number {
             numbers.remove(0);
@@ -970,13 +970,15 @@ impl CompoundDiceRoll {
 
         // Error if empty Dice Expressions are found (which means two incompatible arithmetic ops
         // were specified next to each other):
-        if dice_exprs.any(|expr| expr.is_empty()) {
+        let dice_exprs = dice_exprs.collect::<Vec<_>>();
+        if dice_exprs.iter().any(|expr| expr.is_empty()) {
             return Err(DiceError::new(
                 DiceErrorKind::CompoundDiceExprInvalidOpStructure,
             ));
         }
 
         let dice = dice_exprs
+            .into_iter()
             .map(|expr| Dice::parse(expr))
             .collect::<Result<Vec<_>>>()?;
 
