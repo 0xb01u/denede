@@ -967,7 +967,7 @@ impl CompoundDiceRoll {
         }
 
         // Extract and parse every dice:
-        let arithmetic_ops = Regex::new(r"(?P<op>[\+\-\*\/])").unwrap();
+        let arithmetic_ops = Regex::new(r"[\+\-\*\/]").unwrap();
         let mut dice_exprs = arithmetic_ops.split(&text);
 
         if text.starts_with('+') || text.starts_with('-') {
@@ -991,9 +991,9 @@ impl CompoundDiceRoll {
 
         // Extract and parse the arithmetic operations:
         let ops = arithmetic_ops
-            .captures_iter(&text)
-            .map(|cap| cap.name("op").unwrap().as_str().into())
-            .collect::<Vec<DiceArithmeticOp>>();
+            .find_iter(&text)
+            .map(|cap| cap.as_str().into())
+            .collect::<Vec<_>>();
 
         Ok(CompoundDiceRoll { dice, ops })
     }
