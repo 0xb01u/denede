@@ -128,12 +128,6 @@ impl<'a> Deref for DieOpId<'a> {
     }
 }
 
-impl<'a, 'b> PartialEq<&[&'b str]> for DieOpId<'a> {
-    fn eq(&self, other: &&[&'b str]) -> bool {
-        self.0 == *other
-    }
-}
-
 /// Enum representing the different kinds of die operations.
 ///
 /// See [MapTool's Dice Expressions](https://wiki.rptools.info/index.php/Dice_Expressions) for more
@@ -237,28 +231,22 @@ impl DiceResult {
     }
 }
 
-impl From<(Vec<i32>, bool)> for DiceResult {
-    fn from(value: (Vec<i32>, bool)) -> Self {
-        Self::new(value.0, value.1, None)
-    }
-}
-
-impl From<(Vec<u16>, bool)> for DiceResult {
-    fn from(value: (Vec<u16>, bool)) -> Self {
-        let seq = value.0.into_iter().map(|x| x as i32).collect::<Vec<_>>();
+impl<T> From<(Vec<T>, bool)> for DiceResult
+where
+    T: Into<i32>,
+{
+    fn from(value: (Vec<T>, bool)) -> Self {
+        let seq = value.0.into_iter().map(|e| e.into()).collect();
         Self::new(seq, value.1, None)
     }
 }
 
-impl From<(Vec<i32>, bool, u16)> for DiceResult {
-    fn from(value: (Vec<i32>, bool, u16)) -> Self {
-        Self::new(value.0, value.1, Some(value.2))
-    }
-}
-
-impl From<(Vec<u16>, bool, u16)> for DiceResult {
-    fn from(value: (Vec<u16>, bool, u16)) -> Self {
-        let seq = value.0.into_iter().map(|x| x as i32).collect::<Vec<_>>();
+impl<T> From<(Vec<T>, bool, u16)> for DiceResult
+where
+    T: Into<i32>,
+{
+    fn from(value: (Vec<T>, bool, u16)) -> Self {
+        let seq = value.0.into_iter().map(|e| e.into()).collect();
         Self::new(seq, value.1, Some(value.2))
     }
 }
@@ -357,10 +345,8 @@ impl Dice {
             .flatten()
             .map(|&x| x)
             .collect::<Vec<_>>();
-        for id in ids.iter() {
-            if !valid_ids.contains(id) {
-                return Err(DiceError::new(DiceErrorKind::DiceStringInvalidOp));
-            }
+        if ids.iter().any(|id| !valid_ids.contains(id)) {
+            return Err(DiceError::new(DiceErrorKind::DiceStringInvalidOp));
         }
 
         // Check the remaining parts correctly conform a valid op, and extract the op:
@@ -433,10 +419,7 @@ impl Dice {
 
         // Arbitrary limits checks, so only reasonable amounts of numbers of reasonable size are
         // handled:
-        if amount > 50 {
-            return Err(DiceError::new(DiceErrorKind::DiceStringNumberTooLarge));
-        }
-        if sides > 1000 {
+        if amount > 50 || sides > 1000 {
             return Err(DiceError::new(DiceErrorKind::DiceStringNumberTooLarge));
         }
 
@@ -607,6 +590,7 @@ impl Dice {
                 }) as i32
             })
             .collect::<Vec<_>>();
+
         return Ok((result_seq, truly_random && truly_random_reroll).into());
     }
 
@@ -673,7 +657,7 @@ impl Dice {
             }
         }
 
-        // Cast seq to i32 to comply with the structures types:
+        // Cast seq to i32 to comply with the structure's types:
         let seq = seq.into_iter().map(|x| x as i32).collect::<Vec<_>>();
 
         return Ok((seq, truly_random).into());
@@ -729,16 +713,19 @@ impl Dice {
 
         let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
-        // Cast seq to i32 to comply with the structures types:
-        let mut seq = seq.into_iter().map(|x| x as i32).collect::<Vec<_>>();
+        // Cast seq to i32 to comply with the structure's types:
+        let seq = seq.into_iter().map(|x| x as i32).collect::<Vec<_>>();
 
-        for value in seq.iter_mut() {
-            if subkind == BoundKind::Upper {
-                *value = (*value + modifier).min(bound);
-            } else {
-                *value = (*value + modifier).max(bound);
-            };
-        }
+        let seq = seq
+            .iter()
+            .map(|&value| {
+                if subkind == BoundKind::Upper {
+                    (value + modifier).min(bound)
+                } else {
+                    (value + modifier).max(bound)
+                }
+            })
+            .collect::<Vec<_>>();
 
         return Ok((seq, truly_random).into());
     }
@@ -867,18 +854,18 @@ impl std::fmt::Display for RollNumber {
 /// the final result of combining them.
 pub struct CompoundDiceResult {
     /// The results of each individual dice roll in the compound.
-    partial_results: Vec<DiceResult>,
+    individuals: Vec<DiceResult>,
     /// The final result of the compound dice roll.
     total: RollNumber,
 }
 
 impl std::fmt::Display for CompoundDiceResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.partial_results.len() > 1 {
+        if self.individuals.len() > 1 {
             write!(
                 f,
                 "{}; = {}",
-                self.partial_results
+                self.individuals
                     .iter()
                     .map(|res| res.to_string())
                     .collect::<Vec<_>>()
@@ -886,7 +873,7 @@ impl std::fmt::Display for CompoundDiceResult {
                 self.total
             )?;
         } else {
-            write!(f, "{}", self.partial_results[0])?;
+            write!(f, "{}", self.individuals[0])?;
         }
 
         Ok(())
@@ -1005,15 +992,15 @@ impl CompoundDiceRoll {
     /// The result of this `CompoundDiceRoll`.
     pub async fn result(&self) -> Result<CompoundDiceResult> {
         // Get all the sums of all the dice rolls:
-        let partial_results = join_all(self.dice.iter().map(|dice| dice.roll())).await;
-        if partial_results.iter().any(|res| res.is_err()) {
+        let rolls = join_all(self.dice.iter().map(|dice| dice.roll())).await;
+        if rolls.iter().any(|res| res.is_err()) {
             return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
         }
-        let partial_results = partial_results
+        let individuals = rolls
             .into_iter()
             .filter_map(|res| res.ok())
             .collect::<Vec<_>>(); // Unwrap results.
-        let totals = partial_results
+        let results = individuals
             .iter()
             .map(|res| res.seq.iter().sum())
             .collect::<Vec<_>>();
@@ -1021,55 +1008,51 @@ impl CompoundDiceRoll {
         // Extract the arithmetic operations list:
         let mut ops = self.ops.clone();
         let has_divide = ops.contains(&DiceArithmeticOp::Divide); // For later.
-        if ops.len() < totals.len() {
+        if ops.len() < results.len() {
             // No first op specified.
             // Fold init value is zero, the first result will be added to that:
             ops.insert(0, DiceArithmeticOp::Add);
         }
 
         // Zip the results and operations together, for folding later:
-        let result_op_pairs = totals.into_iter().zip(ops.into_iter()).collect::<Vec<_>>();
+        let res_op_pairs = results.into_iter().zip(ops.into_iter()).collect::<Vec<_>>();
 
         // Check for division by zero and return an error if applicable:
-        if result_op_pairs.contains(&(0, DiceArithmeticOp::Divide)) {
+        if res_op_pairs.contains(&(0, DiceArithmeticOp::Divide)) {
             return Err(DiceError::new(DiceErrorKind::DiceExprDivisionByZero));
         }
 
         // Compute the final result based on the arithmetic operations:
-        let total = if has_divide {
-            // If there is a division operation, we need to return a float:
-            RollNumber::Float(
-                result_op_pairs
-                    .iter()
-                    .fold(0.0, |acc, (result, op)| match op {
-                        DiceArithmeticOp::Add => acc + *result as f64,
-                        DiceArithmeticOp::Subtract => acc - *result as f64,
-                        DiceArithmeticOp::Multiply => acc * *result as f64,
+        let total =
+            if has_divide {
+                // If there is a division operation, we need to return a float:
+                RollNumber::Float(res_op_pairs.into_iter().fold(
+                    0.0,
+                    |acc, (result, op)| match op {
+                        DiceArithmeticOp::Add => acc + result as f64,
+                        DiceArithmeticOp::Subtract => acc - result as f64,
+                        DiceArithmeticOp::Multiply => acc * result as f64,
                         DiceArithmeticOp::Divide => {
-                            if *result == 0 {
+                            if result == 0 {
                                 unreachable!("Division by zero in dice roll result");
                             }
-                            acc / *result as f64
+                            acc / result as f64
                         }
-                    }),
-            )
-        } else {
-            // If there is no division operation, we can return an integer:
-            RollNumber::Integer(
-                result_op_pairs
-                    .iter()
-                    .fold(0, |acc, (result, op)| match op {
-                        DiceArithmeticOp::Add => acc + *result as i32,
-                        DiceArithmeticOp::Subtract => acc - *result as i32,
-                        DiceArithmeticOp::Multiply => acc * *result as i32,
+                    },
+                ))
+            } else {
+                // If there is no division operation, we can return an integer:
+                RollNumber::Integer(res_op_pairs.into_iter().fold(
+                    0,
+                    |acc, (result, op)| match op {
+                        DiceArithmeticOp::Add => acc + result as i32,
+                        DiceArithmeticOp::Subtract => acc - result as i32,
+                        DiceArithmeticOp::Multiply => acc * result as i32,
                         _ => unreachable!("Division is not supported in integer dice rolls"),
-                    }),
-            )
-        };
+                    },
+                ))
+            };
 
-        Ok(CompoundDiceResult {
-            partial_results,
-            total,
-        })
+        Ok(CompoundDiceResult { individuals, total })
     }
 }
