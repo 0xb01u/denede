@@ -18,7 +18,7 @@
 use serenity::builder::{CreateCommand, CreateCommandOption};
 use serenity::model::application::{CommandOptionType, ResolvedOption, ResolvedValue};
 
-use crate::dice::{CompoundDiceRoll, DiceErrorKind};
+use crate::dice::{CompoundDiceRoll, ErrorKind};
 
 pub async fn run(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral;
@@ -61,10 +61,8 @@ pub async fn run(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let result_str = match result {
         Ok(result) => format!("{}", result),
         Err(e) => match e.kind {
-            DiceErrorKind::DiceExprDivisionByZero => {
-                "The roll produced a division by zero".to_string()
-            }
-            DiceErrorKind::DiceExprInvalidArgument => {
+            ErrorKind::DiceExprDivisionByZero => "The roll produced a division by zero".to_string(),
+            ErrorKind::DiceExprInvalidArgument => {
                 "The specified dice contains at least one argument with an invalid value"
                     .to_string()
             }

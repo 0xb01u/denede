@@ -30,7 +30,7 @@ use serenity::{
 };
 use std::env;
 
-use dice::{CompoundDiceRoll, DiceErrorKind};
+use dice::{CompoundDiceRoll, ErrorKind};
 
 struct Bot;
 
@@ -118,7 +118,7 @@ impl EventHandler for Bot {
         for roll in results {
             let next_result = if let Ok(result) = roll {
                 format!("{}", result)
-            } else if roll.err().unwrap().kind == DiceErrorKind::DiceExprDivisionByZero {
+            } else if roll.err().unwrap().kind == ErrorKind::DiceExprDivisionByZero {
                 "The roll produced a division by zero.".to_string()
             } else {
                 continue;
