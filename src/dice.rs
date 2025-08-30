@@ -23,7 +23,7 @@ type Result<T> = std::result::Result<T, DiceError>;
 
 /// Enum representing the different kinds of errors that can occur in this module.
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum DiceErrorKind {
+pub enum ErrorKind {
     RandomOrgUnreachable,
     RandomOrgInvalidResponse,
     DiceStringInvalidCharacters,
@@ -40,12 +40,12 @@ pub enum DiceErrorKind {
 #[derive(Clone, Debug)]
 pub struct DiceError {
     /// The kind of error that occurred.
-    pub kind: DiceErrorKind,
+    pub kind: ErrorKind,
 }
 
 impl DiceError {
     /// Creates a new `DiceError` instance from the specified kind.
-    fn new(kind: DiceErrorKind) -> Self {
+    fn new(kind: ErrorKind) -> Self {
         Self { kind }
     }
 }
@@ -70,13 +70,13 @@ async fn process_randomorg_request(endpoint: String) -> Result<Vec<u16>> {
                     .filter_map(|line| line.parse::<u16>().ok())
                     .collect());
             } else {
-                return Err(DiceError::new(DiceErrorKind::RandomOrgInvalidResponse));
+                return Err(DiceError::new(ErrorKind::RandomOrgInvalidResponse));
             }
         } else {
-            return Err(DiceError::new(DiceErrorKind::RandomOrgInvalidResponse));
+            return Err(DiceError::new(ErrorKind::RandomOrgInvalidResponse));
         }
     } else {
-        return Err(DiceError::new(DiceErrorKind::RandomOrgUnreachable));
+        return Err(DiceError::new(ErrorKind::RandomOrgUnreachable));
     }
 }
 
@@ -267,12 +267,13 @@ impl std::fmt::Display for DiceResult {
             )?;
 
             if self.seq.len() > 1 {
-                let sum = if let Some(threshold) = self.success_threshold {
-                    self.seq.iter().filter(|&&x| x >= threshold as i32).count() as i32
+                if let Some(threshold) = self.success_threshold {
+                    let sum = self.seq.iter().filter(|&&x| x >= threshold as i32).count();
+                    write!(f, " >= {} = {}", threshold, sum)?;
                 } else {
-                    self.seq.iter().sum::<i32>()
-                };
-                write!(f, " = {}", sum)?;
+                    let sum = self.seq.iter().sum::<i32>();
+                    write!(f, " = {}", sum)?;
+                }
             }
 
             if !self.truly_random {
@@ -283,11 +284,19 @@ impl std::fmt::Display for DiceResult {
     }
 }
 
-/// Structure representing a dice to be rolled.
+/// Structure representing some same-sided dice to be rolled.
+///
+/// Dice to be rolled can be of different kinds, as specified by
+/// [MapTool's Dice Expressions](https://wiki.rptools.info/index.php/Dice_Expressions),
+/// defining different operations and results.
 pub struct Dice {
+    /// The amount of dice to roll.
     amount: u16,
+    /// The number of sides of the dice to roll.
     sides: u16,
+    /// The kind of die operation to perform.
     kind: DieKind,
+    /// Additional arguments for the die operation, if applicable.
     args: Vec<u16>,
 }
 
@@ -307,7 +316,7 @@ impl Dice {
         // Allow only alphanumeric strings:
         let alphanumeric_regex = Regex::new(r"^[a-z0-9]+$").unwrap();
         if !alphanumeric_regex.is_match(text) {
-            return Err(DiceError::new(DiceErrorKind::DiceStringInvalidCharacters));
+            return Err(DiceError::new(ErrorKind::DiceStringInvalidCharacters));
         }
 
         // Roll may be only a number:
@@ -335,7 +344,7 @@ impl Dice {
 
         // First check on the number of die operation parts specified:
         if ids.len() > 2 {
-            return Err(DiceError::new(DiceErrorKind::DiceStringTooManyParts));
+            return Err(DiceError::new(ErrorKind::DiceStringTooManyParts));
         }
 
         // Check the remaining op parts are valid:
@@ -346,13 +355,13 @@ impl Dice {
             .map(|&x| x)
             .collect::<Vec<_>>();
         if ids.iter().any(|id| !valid_ids.contains(id)) {
-            return Err(DiceError::new(DiceErrorKind::DiceStringInvalidOp));
+            return Err(DiceError::new(ErrorKind::DiceStringInvalidOp));
         }
 
         // Check the remaining parts correctly conform a valid op, and extract the op:
         let kind = DICE_IDS_MAP
             .get(&DieOpId(&ids))
-            .ok_or_else(|| DiceError::new(DiceErrorKind::DiceStringInvalidOp))?
+            .ok_or_else(|| DiceError::new(ErrorKind::DiceStringInvalidOp))?
             .clone();
 
         // Extract numbers:
@@ -364,7 +373,7 @@ impl Dice {
         let amount = if let Some(m) = starts_by_number_match {
             m.as_str()
                 .parse::<u16>()
-                .map_err(|_| DiceError::new(DiceErrorKind::DiceStringNumberTooLarge))?
+                .map_err(|_| DiceError::new(ErrorKind::DiceStringNumberTooLarge))?
         } else {
             1
         };
@@ -376,7 +385,7 @@ impl Dice {
             .filter(|x| !x.is_empty())
             .map(|x| {
                 x.parse::<u16>()
-                    .map_err(|_| DiceError::new(DiceErrorKind::DiceStringNumberTooLarge))
+                    .map_err(|_| DiceError::new(ErrorKind::DiceStringNumberTooLarge))
             })
             .collect::<Result<Vec<_>>>()?;
         if numbers.is_empty() {
@@ -420,7 +429,7 @@ impl Dice {
         // Arbitrary limits checks, so only reasonable amounts of numbers of reasonable size are
         // handled:
         if amount > 50 || sides > 1000 {
-            return Err(DiceError::new(DiceErrorKind::DiceStringNumberTooLarge));
+            return Err(DiceError::new(ErrorKind::DiceStringNumberTooLarge));
         }
 
         Ok(Dice {
@@ -441,7 +450,7 @@ impl Dice {
 
         if self.sides == 1 {
             if threshold > 1 {
-                return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+                return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
             }
             return Ok((vec![self.amount as i32], true).into());
         }
@@ -471,7 +480,7 @@ impl Dice {
     async fn drop(&self) -> Result<DiceResult> {
         let drop_count = self.args[0] as usize;
         if drop_count > self.amount as usize {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
         }
 
         if self.sides == 1 {
@@ -514,7 +523,7 @@ impl Dice {
     async fn keep(&self) -> Result<DiceResult> {
         let keep_count = self.args[0] as usize;
         if keep_count > self.amount as usize {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
         }
 
         if self.sides == 1 {
@@ -556,7 +565,7 @@ impl Dice {
     async fn reroll_once(&self) -> Result<DiceResult> {
         let threshold = self.args[0];
         if threshold > self.sides {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
         }
 
         if self.sides == 1 {
@@ -599,12 +608,12 @@ impl Dice {
         if self.kind == DieKind::ExplodingSuccess {
             let threshold = self.args[1];
             if threshold > self.sides {
-                return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+                return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
             }
         }
 
         if self.sides == 1 {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidSides));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidSides));
         }
 
         let (mut seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
@@ -638,7 +647,7 @@ impl Dice {
     /// Dice open operation.
     async fn open(&self) -> Result<DiceResult> {
         if self.sides == 1 {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidSides));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidSides));
         }
 
         let (mut seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
@@ -733,7 +742,7 @@ impl Dice {
     /// Dice open-ended operations (both variants).
     async fn open_ended(&self) -> Result<DiceResult> {
         if self.sides == 1 {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidSides));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidSides));
         }
 
         let low = self.args[0];
@@ -743,7 +752,7 @@ impl Dice {
             self.sides + 1 - low
         };
         if high <= low || high > self.sides {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
         }
 
         let (seq, mut truly_random) = call_randomorg(self.amount, self.sides, 1).await;
@@ -836,7 +845,7 @@ impl From<&str> for DiceArithmeticOp {
 /// can be either an integer or a floating-point number (the latter only in the case of division).
 pub enum RollNumber {
     /// Represents an integer number.
-    Integer(i32),
+    Int(i32),
     /// Represents a floating-point number.
     Float(f64),
 }
@@ -844,7 +853,7 @@ pub enum RollNumber {
 impl std::fmt::Display for RollNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RollNumber::Integer(num) => write!(f, "{}", num),
+            RollNumber::Int(num) => write!(f, "{}", num),
             RollNumber::Float(num) => write!(f, "{:.2}", num),
         }
     }
@@ -880,8 +889,9 @@ impl std::fmt::Display for CompoundDiceResult {
     }
 }
 
-/// Structure representing a compound dice roll, which consist of one or more independent dice
-/// rolls, and the arithmetic operations that combine all of them into a single result.
+/// Structure representing a compound dice roll, which consist of one or more independent
+/// same-sided dice rolls, and the arithmetic operations that combine all of them into a single
+/// result.
 pub struct CompoundDiceRoll {
     /// The dice to be rolled.
     dice: Vec<Dice>,
@@ -909,6 +919,7 @@ impl CompoundDiceRoll {
         // Collapse redundant unary arithmetic operations:
         let redundant_pluses_regex = Regex::new(r"\+\++").unwrap();
         let redundant_minuses_regex = Regex::new(r"(\-\-)+").unwrap();
+        // Collapse plus-minus combinations:
         let negative_change_regex = Regex::new(r"\-\+").unwrap();
         let positive_change_regex = Regex::new(r"\+\-").unwrap();
         loop {
@@ -949,7 +960,7 @@ impl CompoundDiceRoll {
         // Handle other trailing arithmetic operations:
         if text.ends_with('*') || text.ends_with('/') {
             return Err(DiceError::new(
-                DiceErrorKind::CompoundDiceExprInvalidOpStructure,
+                ErrorKind::CompoundDiceExprInvalidOpStructure,
             ));
         }
 
@@ -967,7 +978,7 @@ impl CompoundDiceRoll {
         let dice_exprs = dice_exprs.collect::<Vec<_>>();
         if dice_exprs.iter().any(|expr| expr.is_empty()) {
             return Err(DiceError::new(
-                DiceErrorKind::CompoundDiceExprInvalidOpStructure,
+                ErrorKind::CompoundDiceExprInvalidOpStructure,
             ));
         }
 
@@ -994,7 +1005,7 @@ impl CompoundDiceRoll {
         // Get all the sums of all the dice rolls:
         let rolls = join_all(self.dice.iter().map(|dice| dice.roll())).await;
         if rolls.iter().any(|res| res.is_err()) {
-            return Err(DiceError::new(DiceErrorKind::DiceExprInvalidArgument));
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
         }
         let individuals = rolls
             .into_iter()
@@ -1019,16 +1030,16 @@ impl CompoundDiceRoll {
 
         // Check for division by zero and return an error if applicable:
         if res_op_pairs.contains(&(0, DiceArithmeticOp::Divide)) {
-            return Err(DiceError::new(DiceErrorKind::DiceExprDivisionByZero));
+            return Err(DiceError::new(ErrorKind::DiceExprDivisionByZero));
         }
 
         // Compute the final result based on the arithmetic operations:
-        let total =
-            if has_divide {
-                // If there is a division operation, we need to return a float:
-                RollNumber::Float(res_op_pairs.into_iter().fold(
-                    0.0,
-                    |acc, (result, op)| match op {
+        let total = if has_divide {
+            // If there is a division operation, we need to return a float:
+            RollNumber::Float(
+                res_op_pairs
+                    .into_iter()
+                    .fold(0.0, |acc, (result, op)| match op {
                         DiceArithmeticOp::Add => acc + result as f64,
                         DiceArithmeticOp::Subtract => acc - result as f64,
                         DiceArithmeticOp::Multiply => acc * result as f64,
@@ -1038,20 +1049,21 @@ impl CompoundDiceRoll {
                             }
                             acc / result as f64
                         }
-                    },
-                ))
-            } else {
-                // If there is no division operation, we can return an integer:
-                RollNumber::Integer(res_op_pairs.into_iter().fold(
-                    0,
-                    |acc, (result, op)| match op {
+                    }),
+            )
+        } else {
+            // If there is no division operation, we can return an integer:
+            RollNumber::Int(
+                res_op_pairs
+                    .into_iter()
+                    .fold(0, |acc, (result, op)| match op {
                         DiceArithmeticOp::Add => acc + result as i32,
                         DiceArithmeticOp::Subtract => acc - result as i32,
                         DiceArithmeticOp::Multiply => acc * result as i32,
                         _ => unreachable!("Division is not supported in integer dice rolls"),
-                    },
-                ))
-            };
+                    }),
+            )
+        };
 
         Ok(CompoundDiceResult { individuals, total })
     }
