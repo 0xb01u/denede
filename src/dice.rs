@@ -452,11 +452,11 @@ impl Dice {
         } else {
             1
         };
+        if threshold > self.sides {
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
+        }
 
         if self.sides == 1 {
-            if threshold > 1 {
-                return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
-            }
             return Ok((vec![self.amount as i32], true).into());
         }
 
