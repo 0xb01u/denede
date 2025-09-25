@@ -22,7 +22,7 @@ use std::{collections::HashMap, ops::Deref, sync::LazyLock};
 type Result<T> = std::result::Result<T, DiceError>;
 
 /// Enum representing the different kinds of errors that can occur in this module.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ErrorKind {
     RandomOrgUnreachable,
     RandomOrgInvalidResponse,
@@ -30,14 +30,17 @@ pub enum ErrorKind {
     DiceStringTooManyParts,
     DiceStringInvalidOp,
     DiceStringNumberTooLarge,
+    DiceAmountTooLarge,
+    DiceTooManySides,
     DiceExprDivisionByZero,
     DiceExprInvalidArgument,
     DiceExprInvalidSides,
     CompoundDiceExprInvalidOpStructure,
+    CompoundDiceMultipleRollErrors,
 }
 
 /// Structure encapsulating an error that can occur in this module.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct DiceError {
     /// The kind of error that occurred.
     pub kind: ErrorKind,
@@ -196,7 +199,7 @@ static DICE_IDS_MAP: LazyLock<HashMap<DieOpId, DieKind>> = LazyLock::new(|| {
 });
 
 /// Structure representing the result of a dice roll.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DiceResult {
     /// The sequence of rolled values.
     seq: Vec<i32>,
@@ -428,8 +431,10 @@ impl Dice {
 
         // Arbitrary limits checks, so only reasonable amounts of numbers of reasonable size are
         // handled:
-        if amount > 50 || sides > 1000 {
-            return Err(DiceError::new(ErrorKind::DiceStringNumberTooLarge));
+        if amount > 50 {
+            return Err(DiceError::new(ErrorKind::DiceAmountTooLarge));
+        } else if sides > 1000 {
+            return Err(DiceError::new(ErrorKind::DiceTooManySides));
         }
 
         Ok(Dice {
@@ -1002,15 +1007,26 @@ impl CompoundDiceRoll {
     /// # Returns
     /// The result of this `CompoundDiceRoll`.
     pub async fn result(&self) -> Result<CompoundDiceResult> {
-        // Get all the sums of all the dice rolls:
+        // Roll all the dice:
         let rolls = join_all(self.dice.iter().map(|dice| dice.roll())).await;
-        if rolls.iter().any(|res| res.is_err()) {
-            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
+        // Handle roll errors:
+        let errors = rolls
+            .clone()
+            .into_iter()
+            .filter_map(|res| res.err())
+            .collect::<Vec<_>>();
+        if errors.len() > 0 {
+            if errors.len() == 1 {
+                // Only one dice roll, return its error:
+                return Err(errors[0]);
+            }
+            return Err(DiceError::new(ErrorKind::CompoundDiceMultipleRollErrors));
         }
+        // Get all the sums of all the dice rolls:
         let individuals = rolls
             .into_iter()
             .filter_map(|res| res.ok())
-            .collect::<Vec<_>>(); // Unwrap results.
+            .collect::<Vec<_>>(); // Unwrap roll results.
         let results = individuals
             .iter()
             .map(|res| res.seq.iter().sum())

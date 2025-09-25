@@ -51,28 +51,53 @@ pub async fn run(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     }
 
     // Process dice expression as it is done in regular messages:
-    let dice_roll = match CompoundDiceRoll::parse(&dice_expression) {
-        Ok(roll) => roll,
-        Err(_) => {
-            return Some(("Malformed dice expression.".to_string(), ephemeral));
-        }
+    let result = match CompoundDiceRoll::parse(&dice_expression) {
+        Ok(roll) => roll.result().await,
+        Err(e) => Err(e),
     };
-    let result = dice_roll.result().await;
-    let result_str = match result {
-        Ok(result) => format!("{}", result),
-        Err(e) => match e.kind {
-            ErrorKind::DiceExprDivisionByZero => "The roll produced a division by zero".to_string(),
-            ErrorKind::DiceExprInvalidArgument => {
-                "The specified dice contains at least one argument with an invalid value"
+    let result_str = if let Ok(value) = result {
+        format!("{}", value)
+    } else {
+        match result.err().unwrap().kind {
+            ErrorKind::DiceExprDivisionByZero => {
+                "Zounds! My calculations have fallen into a division by naught!".to_string()
+            }
+            ErrorKind::DiceAmountTooLarge => {
+                "Forgive me, good adventurer; I am overwhelmed by a surplus of dice \
+                            in this casting, for I can count but fifty at most!"
                     .to_string()
             }
-            _ => unreachable!("Unexpected error kind: {:?}", e.kind),
-        },
+            ErrorKind::DiceTooManySides => {
+                "I beg your pardon, for the die you summoned bears too many faces; \
+                            its sides must be fewer than a thousand for my humble reckoning!"
+                    .to_string()
+            }
+            ErrorKind::DiceExprInvalidSides => {
+                "The number of sides thou hast named doth not accord with the operation \
+                            thou hast chosen."
+                    .to_string()
+            }
+            ErrorKind::DiceExprInvalidArgument => {
+                "A flaw dwells in one quality of the operation thou hast invoked. \
+                            Prithee, examine the exact requirements anew!"
+                    .to_string()
+            }
+            ErrorKind::CompoundDiceMultipleRollErrors => {
+                "More than one of the rolls thou hast named hath yielded an error. \
+                            I pray thee, examine each in turn!"
+                    .to_string()
+            }
+            _ => "The dice formula thou hast set is ill‑formed. \
+               I beseech thee, check it once more!"
+                .to_string(),
+        }
     };
 
     if result_str.len() > 2000 {
         return Some((
-            "The result is too long to be displayed in a single message.".to_string(),
+            "I pray forgiveness, yet the outcome doth exceed the bounds of a single missive, \
+            and thus I cannot lay it before thee in one scroll."
+                .to_string(),
             ephemeral,
         ));
     }

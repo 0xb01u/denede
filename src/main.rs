@@ -67,24 +67,55 @@ impl EventHandler for Bot {
         }
 
         let dice_expr_regex = Regex::new(r"\[[^\[]+?\]").unwrap();
-        let results = join_all(
-            dice_expr_regex
-                .find_iter(&msg.content)
-                .filter_map(|m| CompoundDiceRoll::parse(&m.as_str()[1..m.len() - 1]).ok())
-                .map(|d| async move { d.result().await }),
-        )
+        let parse_results = dice_expr_regex
+            .find_iter(&msg.content)
+            .map(|m| CompoundDiceRoll::parse(&m.as_str()[1..m.len() - 1]));
+        let dice_results = join_all(parse_results.map(|res| async move {
+            match res {
+                Ok(d) => d.result().await,
+                Err(e) => Err(e),
+            }
+        }))
         .await;
 
         // Join all rolls in the corresponding amount of messages:
         let mut response = Vec::new();
         let mut accum_len = 0;
-        for roll in results {
+        for roll in dice_results {
             let next_result = if let Ok(result) = roll {
                 format!("{}", result)
-            } else if roll.err().unwrap().kind == ErrorKind::DiceExprDivisionByZero {
-                "The roll produced a division by zero.".to_string()
             } else {
-                continue;
+                match roll.err().unwrap().kind {
+                    ErrorKind::DiceExprDivisionByZero => {
+                        "Zounds! My calculations have fallen into a division by naught!".to_string()
+                    }
+                    ErrorKind::DiceAmountTooLarge => {
+                        "Forgive me, good adventurer; I am overwhelmed by a surplus of dice \
+                            in this casting, for I can count but fifty at most!"
+                            .to_string()
+                    }
+                    ErrorKind::DiceTooManySides => {
+                        "I beg your pardon, for the die you summoned bears too many faces; \
+                            its sides must be fewer than a thousand for my humble reckoning!"
+                            .to_string()
+                    }
+                    ErrorKind::DiceExprInvalidSides => {
+                        "The number of sides thou hast named doth not accord with the operation \
+                            thou hast chosen."
+                            .to_string()
+                    }
+                    ErrorKind::DiceExprInvalidArgument => {
+                        "A flaw dwells in one quality of the operation thou hast invoked. \
+                            Prithee, examine the exact requirements anew!"
+                            .to_string()
+                    }
+                    ErrorKind::CompoundDiceMultipleRollErrors => {
+                        "More than one of the rolls thou hast named hath yielded an error. \
+                            I pray thee, examine each in turn!"
+                            .to_string()
+                    }
+                    _ => continue,
+                }
             };
 
             // If the next result would exceed the message length, send the current response:
