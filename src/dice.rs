@@ -228,7 +228,7 @@ impl DiceResult {
 
     /// Creates a `DiceResult` that represents rolling zero dice.
     ///
-    /// The total result for this `DiceResult` will be `0.
+    /// The total result for this `DiceResult` will be `0`.
     fn zero() -> Self {
         Self::new(vec![], false, None)
     }
