@@ -228,7 +228,7 @@ impl DiceResult {
 
     /// Creates a `DiceResult` that represents rolling zero dice.
     ///
-    /// The total result for this `DiceResult` will be `0.
+    /// The total result for this `DiceResult` will be `0`.
     fn zero() -> Self {
         Self::new(vec![], false, None)
     }
@@ -452,11 +452,11 @@ impl Dice {
         } else {
             1
         };
+        if threshold > self.sides {
+            return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
+        }
 
         if self.sides == 1 {
-            if threshold > 1 {
-                return Err(DiceError::new(ErrorKind::DiceExprInvalidArgument));
-            }
             return Ok((vec![self.amount as i32], true).into());
         }
 
