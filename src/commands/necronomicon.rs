@@ -162,7 +162,7 @@ macro_rules! request {
                 return Some((
                     format!("Could not send the request to the server: {}.", why),
                     $ephemeral,
-                ))
+                ));
             }
         }
     }};
@@ -179,7 +179,7 @@ macro_rules! request {
                 return Some((
                     format!("Could not send the request to the server: {}.", why),
                     false,
-                ))
+                ));
             }
         }
     }};
@@ -191,7 +191,7 @@ macro_rules! request {
                 return Some((
                     format!("Could not send the request to the server: {}.", why),
                     false,
-                ))
+                ));
             }
         }
     }};
@@ -234,7 +234,7 @@ fn sanitize_name<Stringlike: AsRef<str>>(name: Stringlike) -> String {
 /* Command functions: */
 
 const NOT_FOUND_MSG: &str = "Could not find the specified enemy on the system. \
-(Or something very wrong happened to the server.)";
+                             (Or something very wrong happened to the server.)";
 
 pub async fn url(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
@@ -571,7 +571,7 @@ pub async fn addability(options: &[ResolvedOption<'_>]) -> Option<(String, bool)
                 "Could not update the enemy's resistances, immunities, and vulnerabilities \
                     because some data is unknown to the system. Unrecognized item: **{}**.",
                 response.text().await.expect(
-                    "Could not decode a server's response's body as text (command: setability)."
+                    "Could not decode a server's response's body as text (command: addability)."
                 )
             ),
             ephemeral,
@@ -622,6 +622,18 @@ pub async fn delnote(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
             ),
             false,
         )),
+        reqwest::StatusCode::BAD_REQUEST => {
+            if note_idx <= 0 {
+                return Some(("The note number must be at least 1.".to_string(), true));
+            }
+            Some((
+                format!(
+                    "The specified note number ({}) is bigger than the amount of notes of the enemy.",
+                    note_idx
+                ),
+                true,
+            ))
+        }
         reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         _ => unexpected_response!(response, false),
     };
@@ -813,11 +825,33 @@ pub async fn revealability(options: &[ResolvedOption<'_>]) -> Option<(String, bo
                 Unrecognized item: **{}**.\n\
                 (Maybe the ability was not previously added to the system using `/addability`?)",
                 response.text().await.expect(
-                    "Could not decode a server's response's body as text (command: setability)."
+                    "Could not decode a server's response's body as text (command: revealability)."
                 )
             ),
             false,
         )),
+        _ => unexpected_response!(response, false),
+    };
+}
+
+pub async fn revealall(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let enemy_name = get_cmd_opt!(
+        options,
+        "enemy",
+        String,
+        &fs::read_to_string(".target_name").expect("Could not read .target_name.")
+    );
+
+    let response = request!(
+        post,
+        format!("/enemy/{}/reveal/all", sanitize_name(enemy_name))
+    );
+    return match response.status() {
+        reqwest::StatusCode::OK => Some((
+            format!("Revealed all of {}'s information on its page.", enemy_name),
+            false,
+        )),
+        reqwest::StatusCode::NOT_FOUND => Some((NOT_FOUND_MSG.to_string(), false)),
         _ => unexpected_response!(response, false),
     };
 }
@@ -867,6 +901,25 @@ pub async fn addriveffect(options: &[ResolvedOption<'_>]) -> Option<(String, boo
     };
 }
 
+pub async fn delriveffect(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+
+    let name = get_cmd_opt!(options, "name", String);
+
+    let response = request!(delete, "/riv", name, ephemeral);
+    return match response.status() {
+        reqwest::StatusCode::OK => Some((
+            format!("Correctly deleted RIV effect {} from the system.", name),
+            ephemeral,
+        )),
+        reqwest::StatusCode::BAD_REQUEST => Some((
+            "The specified RIV effect does not exist on the system.".to_string(),
+            ephemeral,
+        )),
+        _ => unexpected_response!(response, ephemeral),
+    };
+}
+
 pub async fn addtrait(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
     let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
 
@@ -888,6 +941,29 @@ pub async fn addtrait(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> 
                 "Correctly added trait {} in category {}, subcategory {}, to the system.",
                 name, category, subcategory
             ),
+            ephemeral,
+        )),
+        reqwest::StatusCode::BAD_REQUEST => Some((
+                "The specified trait already exists on the system. If you want to overwrite it, please delete it first using `/deltrait`.".to_string(),
+            ephemeral,
+        )),
+        _ => unexpected_response!(response, ephemeral),
+    };
+}
+
+pub async fn deltrait(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
+
+    let name = get_cmd_opt!(options, "name", String);
+
+    let response = request!(delete, "/trait", name, ephemeral);
+    return match response.status() {
+        reqwest::StatusCode::OK => Some((
+            format!("Correctly deleted trait {} from the system.", name),
+            ephemeral,
+        )),
+        reqwest::StatusCode::BAD_REQUEST => Some((
+            "The specified trait does not exist on the system.".to_string(),
             ephemeral,
         )),
         _ => unexpected_response!(response, ephemeral),
@@ -1426,6 +1502,18 @@ pub fn register() -> Vec<CreateCommand> {
             ),
     );
     commands.push(
+        CreateCommand::new("revealall")
+            .description("[+N] Reveal all the information about an enemy.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "enemy",
+                    "The name of the enemy.",
+                )
+                .required(false),
+            ),
+    );
+    commands.push(
         CreateCommand::new("refresh")
             .description("[+N] Update (refresh) an enemy's page.")
             .add_option(
@@ -1498,6 +1586,29 @@ pub fn register() -> Vec<CreateCommand> {
             ),
     );
     commands.push(
+        CreateCommand::new("delriveffect")
+            .description(
+                "[+N] Delete an effect susceptible of resistance, immunity or \
+                vulnerability from the system.",
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the effect.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
+    commands.push(
         CreateCommand::new("addtrait")
             .description("[+N] Add a new trait for enemies.")
             .add_option(
@@ -1529,6 +1640,26 @@ pub fn register() -> Vec<CreateCommand> {
                     CommandOptionType::String,
                     "description",
                     "The description of the trait.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
+    commands.push(
+        CreateCommand::new("deltrait")
+            .description("[+N] Delete a trait for enemies from the system.")
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the trait.",
                 )
                 .required(true),
             )

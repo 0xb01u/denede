@@ -74,13 +74,18 @@ impl EventHandler for Bot {
                 "revealability" => {
                     commands::necronomicon::revealability(&command.data.options()).await
                 }
+                "revealall" => commands::necronomicon::revealall(&command.data.options()).await,
                 "refresh" => commands::necronomicon::refresh(&command.data.options()).await,
                 // Alias for refresh:
                 "update_page" => commands::necronomicon::refresh(&command.data.options()).await,
                 "addriveffect" => {
                     commands::necronomicon::addriveffect(&command.data.options()).await
                 }
+                "delriveffect" => {
+                    commands::necronomicon::delriveffect(&command.data.options()).await
+                }
                 "addtrait" => commands::necronomicon::addtrait(&command.data.options()).await,
+                "deltrait" => commands::necronomicon::deltrait(&command.data.options()).await,
                 _ => None,
             };
 
