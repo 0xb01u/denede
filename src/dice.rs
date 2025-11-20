@@ -582,12 +582,21 @@ impl Dice {
         let reroll_count = seq
             .iter()
             .fold(0, |acc, &x| if x < threshold { acc + 1 } else { acc });
+        if reroll_count == 0 {
+            // No rerolls needed, early exit:
+            return Ok((
+                seq.into_iter().map(|x| x as i32).collect::<Vec<_>>(),
+                truly_random,
+            )
+                .into());
+        }
+
         let (seq_reroll, truly_random_reroll) =
             call_randomorg(reroll_count, self.sides, threshold).await;
         assert!(
             seq_reroll.len() == reroll_count as usize,
             "Reroll count mismatch"
-        );
+        ); // Assert we can unwrap the iterator later.
 
         let mut reroll_iter = seq_reroll.into_iter();
         let result_seq = seq
