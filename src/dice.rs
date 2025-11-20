@@ -24,8 +24,9 @@ type Result<T> = std::result::Result<T, DiceError>;
 /// Enum representing the different kinds of errors that can occur in this module.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ErrorKind {
-    RandomOrgUnreachable,
+    RandomOrgOutOfRange,
     RandomOrgInvalidResponse,
+    RandomOrgUnreachable,
     DiceStringInvalidCharacters,
     DiceStringTooManyParts,
     DiceStringInvalidOp,
@@ -68,10 +69,14 @@ async fn process_randomorg_request(endpoint: String) -> Result<Vec<u16>> {
         if let Ok(text) = res.text().await {
             let first_char = text.chars().next();
             if first_char.is_some() && first_char.unwrap().is_digit(10) {
-                return Ok(text
+                let results = text
                     .lines()
-                    .filter_map(|line| line.parse::<u16>().ok())
-                    .collect());
+                    .map(|line| line.parse::<u16>())
+                    .collect::<Vec<_>>();
+                if results.iter().any(|r| r.is_err()) {
+                    return Err(DiceError::new(ErrorKind::RandomOrgOutOfRange));
+                }
+                return Ok(results.into_iter().filter_map(|r| r.ok()).collect());
             } else {
                 return Err(DiceError::new(ErrorKind::RandomOrgInvalidResponse));
             }
@@ -202,7 +207,7 @@ static DICE_IDS_MAP: LazyLock<HashMap<DieOpId, DieKind>> = LazyLock::new(|| {
 #[derive(Clone, Debug)]
 pub struct DiceResult {
     /// The sequence of rolled values.
-    seq: Vec<i32>,
+    seq: Vec<u16>,
     /// Whether the numbers were truly random (i.e., fetched from RANDOM.ORG).
     truly_random: bool,
     /// The success threshold for the roll, if applicable.
@@ -218,7 +223,7 @@ impl DiceResult {
     /// * `seq` - The sequence of rolled values.
     /// * `truly_random` - Whether the numbers were truly random (i.e., fetched from RANDOM.ORG).
     /// * `success_threshold` - The success threshold for the roll, if applicable.
-    fn new(seq: Vec<i32>, truly_random: bool, success_threshold: Option<u16>) -> Self {
+    fn new(seq: Vec<u16>, truly_random: bool, success_threshold: Option<u16>) -> Self {
         Self {
             seq,
             truly_random,
@@ -236,7 +241,7 @@ impl DiceResult {
 
 impl<T> From<(Vec<T>, bool)> for DiceResult
 where
-    T: Into<i32>,
+    T: Into<u16>,
 {
     fn from(value: (Vec<T>, bool)) -> Self {
         let seq = value.0.into_iter().map(|e| e.into()).collect();
@@ -246,7 +251,7 @@ where
 
 impl<T> From<(Vec<T>, bool, u16)> for DiceResult
 where
-    T: Into<i32>,
+    T: Into<u16>,
 {
     fn from(value: (Vec<T>, bool, u16)) -> Self {
         let seq = value.0.into_iter().map(|e| e.into()).collect();
@@ -271,10 +276,10 @@ impl std::fmt::Display for DiceResult {
 
             if self.seq.len() > 1 {
                 if let Some(threshold) = self.success_threshold {
-                    let sum = self.seq.iter().filter(|&&x| x >= threshold as i32).count();
+                    let sum = self.seq.iter().filter(|&&x| x >= threshold).count();
                     write!(f, " >= {} = {}", threshold, sum)?;
                 } else {
-                    let sum = self.seq.iter().sum::<i32>();
+                    let sum = self.seq.iter().sum::<u16>();
                     write!(f, " = {}", sum)?;
                 }
             }
@@ -457,7 +462,7 @@ impl Dice {
         }
 
         if self.sides == 1 {
-            return Ok((vec![self.amount as i32], true).into());
+            return Ok((vec![self.amount], true).into());
         }
 
         let (seq, truly_random) = call_randomorg(self.amount, self.sides, threshold).await;
@@ -469,11 +474,11 @@ impl Dice {
     async fn success(&self) -> Result<DiceResult> {
         let threshold = self.args[0];
         if threshold > self.sides {
-            return Ok((vec![0], true).into());
+            return Ok((vec![0u16], true).into());
         }
 
         if self.sides == 1 {
-            return Ok((vec![self.amount as i32], true).into());
+            return Ok((vec![self.amount], true).into());
         }
 
         let res = call_randomorg(self.amount, self.sides, 1).await;
@@ -489,7 +494,7 @@ impl Dice {
         }
 
         if self.sides == 1 {
-            return Ok((vec![self.amount as i32 - drop_count as i32], true).into());
+            return Ok((vec![self.amount - drop_count as u16], true).into());
         }
 
         let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
@@ -511,7 +516,7 @@ impl Dice {
                 value <= threshold
             };
             if drop_condition {
-                dropped_seq.push(value as i32);
+                dropped_seq.push(value);
             } else {
                 dropped += 1;
             }
@@ -532,7 +537,7 @@ impl Dice {
         }
 
         if self.sides == 1 {
-            return Ok((vec![keep_count as i32], true).into());
+            return Ok((vec![keep_count as u16], true).into());
         }
 
         let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
@@ -554,7 +559,7 @@ impl Dice {
                 value >= threshold
             };
             if keep_condition {
-                kept_seq.push(value as i32);
+                kept_seq.push(value);
                 kept += 1;
             }
 
@@ -574,7 +579,7 @@ impl Dice {
         }
 
         if self.sides == 1 {
-            return Ok((vec![self.amount as i32], true).into());
+            return Ok((vec![self.amount], true).into());
         }
 
         let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
@@ -582,18 +587,23 @@ impl Dice {
         let reroll_count = seq
             .iter()
             .fold(0, |acc, &x| if x < threshold { acc + 1 } else { acc });
+        if reroll_count == 0 {
+            // No rerolls needed, early exit:
+            return Ok((seq.into_iter().collect::<Vec<_>>(), truly_random).into());
+        }
+
         let (seq_reroll, truly_random_reroll) =
             call_randomorg(reroll_count, self.sides, threshold).await;
         assert!(
             seq_reroll.len() == reroll_count as usize,
             "Reroll count mismatch"
-        );
+        ); // Assert we can unwrap the iterator later.
 
         let mut reroll_iter = seq_reroll.into_iter();
         let result_seq = seq
             .into_iter()
             .map(|x| {
-                (if x < threshold {
+                if x < threshold {
                     if self.kind == DieKind::RerollOnceAndChoose {
                         x.max(reroll_iter.next().unwrap())
                     } else {
@@ -601,7 +611,7 @@ impl Dice {
                     }
                 } else {
                     x
-                }) as i32
+                }
             })
             .collect::<Vec<_>>();
 
@@ -671,9 +681,6 @@ impl Dice {
             }
         }
 
-        // Cast seq to i32 to comply with the structure's types:
-        let seq = seq.into_iter().map(|x| x as i32).collect::<Vec<_>>();
-
         return Ok((seq, truly_random).into());
     }
 
@@ -707,36 +714,41 @@ impl Dice {
             _ => unreachable!(),
         };
 
-        let bound = (match op {
-            BoundOp::None => self.args[0],
-            BoundOp::Add | BoundOp::Subtract => self.args[1],
-        }) as i32;
+        let bound = match op {
+            BoundOp::None => self.args[0] as i16,
+            BoundOp::Add | BoundOp::Subtract => self.args[1] as i16,
+        };
         let modifier = match op {
             BoundOp::None => 0,
-            BoundOp::Add => self.args[0] as i32,
-            BoundOp::Subtract => -(self.args[0] as i32),
+            BoundOp::Add => self.args[0] as i16,
+            BoundOp::Subtract => -((self.args[0]) as i16),
         };
 
         if self.sides == 1 {
             if subkind == BoundKind::Upper {
-                return Ok((vec![self.amount as i32 * bound.min(modifier + 1)], true).into());
+                return Ok((
+                    vec![(self.amount as i16 * bound.min(modifier + 1).max(0)) as u16],
+                    true,
+                )
+                    .into());
             } else {
-                return Ok((vec![self.amount as i32 * bound.max(modifier + 1)], true).into());
+                return Ok((
+                    vec![(self.amount as i16 * bound.max(modifier + 1)) as u16],
+                    true,
+                )
+                    .into());
             }
         }
 
         let (seq, truly_random) = call_randomorg(self.amount, self.sides, 1).await;
 
-        // Cast seq to i32 to comply with the structure's types:
-        let seq = seq.into_iter().map(|x| x as i32).collect::<Vec<_>>();
-
         let seq = seq
             .iter()
             .map(|&value| {
                 if subkind == BoundKind::Upper {
-                    (value + modifier).min(bound)
+                    (value as i16 + modifier).min(bound).max(0) as u16
                 } else {
-                    (value + modifier).max(bound)
+                    (value as i16 + modifier).max(bound) as u16
                 }
             })
             .collect::<Vec<_>>();
@@ -769,7 +781,7 @@ impl Dice {
                     let (new_rolls, truly_random_new) = call_randomorg(1, self.sides, 1).await;
                     assert!(new_rolls.len() == 1, "Open-ended roll count mismatch");
 
-                    result_seq[i] += new_rolls[0] as i32;
+                    result_seq[i] += new_rolls[0];
                     truly_random = truly_random && truly_random_new;
 
                     if new_rolls[0] < high {
@@ -781,7 +793,7 @@ impl Dice {
                     let (new_rolls, truly_random_new) = call_randomorg(1, self.sides, 1).await;
                     assert!(new_rolls.len() == 1, "Open-ended roll count mismatch");
 
-                    result_seq[i] -= new_rolls[0] as i32;
+                    result_seq[i] -= new_rolls[0];
                     truly_random = truly_random && truly_random_new;
 
                     if new_rolls[0] < high {
