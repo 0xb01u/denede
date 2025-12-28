@@ -297,7 +297,7 @@ pub async fn enemy(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
 }
 
 pub async fn target(options: &[ResolvedOption<'_>]) -> Option<(String, bool)> {
-    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, false);
+    let ephemeral = get_cmd_opt!(options, "hidden", Boolean, true);
     let enemy_name = get_cmd_opt!(options, "name", String);
 
     // Check that the enemy exists:
@@ -1042,7 +1042,7 @@ pub fn register() -> Vec<CreateCommand> {
                 CreateCommandOption::new(
                     CommandOptionType::Boolean,
                     "hidden",
-                    "Hide the command's response to other users (default = false).",
+                    "Hide the command's response to other users (default = true).",
                 )
                 .required(false),
             ),
@@ -1574,7 +1574,8 @@ pub fn register() -> Vec<CreateCommand> {
                     "The type of the effect.",
                 )
                 .add_string_choice("Damage RIV", "dmg")
-                .add_string_choice("Condition RIV", "condition"),
+                .add_string_choice("Condition RIV", "condition")
+                .required(true),
             )
             .add_option(
                 CreateCommandOption::new(
