@@ -50,6 +50,7 @@ impl EventHandler for Bot {
                 "addenemy" => commands::necronomicon::addenemy(&command.data.options()).await,
                 "enemy" => commands::necronomicon::enemy(&command.data.options()).await,
                 "target" => commands::necronomicon::target(&command.data.options()).await,
+                "settarget" => commands::necronomicon::target(&command.data.options()).await,
                 "gettarget" => commands::necronomicon::gettarget(&command.data.options()),
                 "setbasics" => commands::necronomicon::setbasics(&command.data.options()).await,
                 "setattrs" => commands::necronomicon::setattrs(&command.data.options()).await,
@@ -77,7 +78,7 @@ impl EventHandler for Bot {
                 "revealall" => commands::necronomicon::revealall(&command.data.options()).await,
                 "refresh" => commands::necronomicon::refresh(&command.data.options()).await,
                 // Alias for refresh:
-                "update_page" => commands::necronomicon::refresh(&command.data.options()).await,
+                "updatepage" => commands::necronomicon::refresh(&command.data.options()).await,
                 "addriveffect" => {
                     commands::necronomicon::addriveffect(&command.data.options()).await
                 }

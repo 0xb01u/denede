@@ -1048,6 +1048,29 @@ pub fn register() -> Vec<CreateCommand> {
             ),
     );
     commands.push(
+        CreateCommand::new("settarget")
+            .description(
+                "[+N] Make a creature the default target of all subsequent commands. \
+                Alias for /target.",
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The name of the creature to target automatically.",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "hidden",
+                    "Hide the command's response to other users (default = true).",
+                )
+                .required(false),
+            ),
+    );
+    commands.push(
         CreateCommand::new("gettarget")
             .description("[+N] Get the name of the current default target creature on the system.")
             .add_option(
@@ -1534,7 +1557,7 @@ pub fn register() -> Vec<CreateCommand> {
             ),
     );
     commands.push(
-        CreateCommand::new("update_page")
+        CreateCommand::new("updatepage")
             .description("[+N] Update an enemy's page. Alias for /refresh.")
             .add_option(
                 CreateCommandOption::new(
