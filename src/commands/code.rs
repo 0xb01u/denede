@@ -31,8 +31,8 @@ pub fn run(options: &[ResolvedOption]) -> Option<(String, bool)> {
     }
 
     Some((
-        "My source code can be found here:
-        https://github.com/0xb01u/denede/tree/necronomicon-extensions"
+        "My source code can be found here: \
+        https://codeberg.org/Bolu/denede/src/branch/necronomicon-extensions"
             .to_string(),
         ephemeral,
     ))

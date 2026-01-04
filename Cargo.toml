@@ -2,6 +2,8 @@
 name = "denede"
 version = "1.1.2-n0.3.0-2"
 edition = "2024"
+authors = ["Bolu <bolu@tuta.io>"]
+repository = "https://codeberg.org/bolu/denede"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
